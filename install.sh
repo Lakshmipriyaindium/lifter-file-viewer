@@ -86,7 +86,7 @@ if [ -z "${SHELL:-}" ]; then
 fi
 
 # ── Repository details ───────────────────────────────────────
-REPO_URL="https://github.com/IndiumSoftware-AppEngineering/Lifter-File-Viewer.git"
+REPO_URL="https://github.com/Lakshmipriyaindium/lifter-file-viewer.git"
 REPO_DIR_NAME="Lifter-File-Viewer"
 
 # ── Minimum required versions ────────────────────────────────
