@@ -289,27 +289,102 @@ APP_VERSION=$(node -p "require('$PROJECT_DIR/package.json').version" 2>/dev/null
 success "Project: $APP_NAME  v$APP_VERSION"
 
 # ============================================================
-# STEP 7 — Install npm dependencies
+# STEP 7a — Install npm packages (without Electron binary)
+# The Electron binary is downloaded separately in Step 7b so we
+# can apply timeouts and try multiple mirrors, avoiding the
+# 30-minute hang caused by corporate firewalls blocking GitHub.
 # ============================================================
 step "Installing npm dependencies"
 
 cd "$PROJECT_DIR"
 
-# Use 'npm ci' when a lockfile exists — it skips dependency resolution
-# and is typically 2-3x faster than 'npm install'.
-# No output filtering — progress streams live so it never looks frozen.
-if [ -f "$PROJECT_DIR/package-lock.json" ]; then
-    info "Running: npm ci (fast install from lockfile) …"
-    npm ci \
-        || { warn "npm ci failed, retrying with npm install …"; npm install; } \
-        || error "npm install failed. Check your network connection and try again."
+info "Installing packages (Electron binary handled separately) …"
+ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install \
+    || error "npm install failed. Check that npm can reach registry.npmjs.org."
+
+success "npm packages installed."
+
+# ============================================================
+# STEP 7b — Download Electron binary (with mirror fallback)
+# ============================================================
+step "Downloading Electron binary"
+
+# Detect Electron version from the installed package
+ELECTRON_PKG="$PROJECT_DIR/node_modules/electron/package.json"
+if [ ! -f "$ELECTRON_PKG" ]; then
+    warn "electron package not found — skipping binary download."
 else
-    info "Running: npm install …"
-    npm install \
-        || error "npm install failed. Check your network connection and try again."
+    ELECTRON_VERSION=$(node -p "require('$ELECTRON_PKG').version" 2>/dev/null || echo "")
+    NODE_ARCH=$(node -p "process.arch" 2>/dev/null || echo "x64")
+
+    if [ "$OS_NAME" = "macOS" ]; then
+        ELECTRON_ZIP="electron-v${ELECTRON_VERSION}-darwin-${NODE_ARCH}.zip"
+    else
+        ELECTRON_ZIP="electron-v${ELECTRON_VERSION}-linux-${NODE_ARCH}.zip"
+    fi
+
+    # @electron/get cache location
+    ELECTRON_CACHE_DIR="$HOME/.cache/electron"
+    [ "$OS_NAME" = "macOS" ] && ELECTRON_CACHE_DIR="$HOME/Library/Caches/electron"
+    ELECTRON_CACHE_FILE="$ELECTRON_CACHE_DIR/$ELECTRON_ZIP"
+
+    info "Electron v${ELECTRON_VERSION} (${NODE_ARCH}) — checking cache …"
+
+    if [ -f "$ELECTRON_CACHE_FILE" ]; then
+        success "Electron binary already cached — skipping download."
+    else
+        mkdir -p "$ELECTRON_CACHE_DIR"
+
+        # Try mirrors in order; each gets a 20s connect timeout
+        MIRRORS=(
+            "https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}"
+            "https://npmmirror.com/mirrors/electron/v${ELECTRON_VERSION}"
+            "https://cdn.npmmirror.com/binaries/electron/v${ELECTRON_VERSION}"
+        )
+
+        DOWNLOADED=false
+        for mirror_url in "${MIRRORS[@]}"; do
+            info "Trying: ${mirror_url}/${ELECTRON_ZIP} …"
+            if curl -fL \
+                    --connect-timeout 20 \
+                    --max-time 300 \
+                    --retry 2 \
+                    -o "$ELECTRON_CACHE_FILE" \
+                    "${mirror_url}/${ELECTRON_ZIP}" 2>/dev/null; then
+                DOWNLOADED=true
+                success "Electron binary downloaded from: $mirror_url"
+                break
+            else
+                warn "Could not reach: $mirror_url — trying next …"
+                rm -f "$ELECTRON_CACHE_FILE"
+            fi
+        done
+
+        if [ "$DOWNLOADED" = false ]; then
+            echo ""
+            echo -e "${YELLOW}${BOLD}⚠  Electron binary could not be downloaded.${NC}"
+            echo -e "${YELLOW}   All download servers are blocked by this machine's firewall."
+            echo ""
+            echo -e "   To fix this, ask your IT/network team to whitelist:${NC}"
+            echo "     • github.com"
+            echo "     • npmmirror.com"
+            echo "     • cdn.npmmirror.com"
+            echo ""
+            echo -e "${YELLOW}   The build step will attempt its own download and may also fail.${NC}"
+            echo ""
+        fi
+    fi
+
+    # Trigger electron's own install.js to place the binary from cache
+    ELECTRON_INSTALL_JS="$PROJECT_DIR/node_modules/electron/install.js"
+    if [ -f "$ELECTRON_INSTALL_JS" ] && [ -f "$ELECTRON_CACHE_FILE" ]; then
+        node "$ELECTRON_INSTALL_JS" 2>/dev/null \
+            && success "Electron binary installed from cache." \
+            || warn "Could not install Electron binary from cache — continuing."
+    fi
 fi
 
-success "All npm dependencies installed."
+
 
 # ============================================================
 # STEP 8 — macOS: Remove ALL security/quarantine restrictions
