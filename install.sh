@@ -90,8 +90,10 @@ REPO_URL="https://github.com/Lakshmipriyaindium/lifter-file-viewer.git"
 REPO_DIR_NAME="Lifter-File-Viewer"
 
 # ── Minimum required versions ────────────────────────────────
-MIN_NODE_MAJOR=18
-MIN_NPM_MAJOR=9
+# The app works on any Node ≥16. Whatever is already on the
+# machine will be used — we never change the system version.
+MIN_NODE_MAJOR=16
+MIN_NPM_MAJOR=8
 
 # ============================================================
 # Function: detect_all_shells
@@ -216,49 +218,28 @@ else
 fi
 
 # ============================================================
-# STEP 3 — Node.js
+# STEP 3 — Node.js  (use whatever is on the system)
 # ============================================================
 step "Checking Node.js"
 
-install_node_macos() {
-    info "Attempting to install Node.js via Homebrew …"
-    if ! command -v brew >/dev/null 2>&1; then
-        info "Homebrew not found — installing Homebrew first …"
-        /bin/bash -c "$(curl -fsSL \
-            https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
-            || error "Homebrew installation failed. Please install Node.js manually: https://nodejs.org"
-        # Add Homebrew to PATH for Apple Silicon Macs
-        if [ -f "/opt/homebrew/bin/brew" ]; then
-            eval "$(/opt/homebrew/bin/brew shellenv)"
-        fi
-    fi
-    brew install node || error "Failed to install Node.js via Homebrew."
-}
-
-install_node_linux() {
-    info "Installing Node.js via NodeSource (LTS) …"
-    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - \
-        || error "NodeSource setup failed."
-    sudo apt-get install -y nodejs \
-        || error "apt-get install nodejs failed."
-}
-
+# Check Node is present at all
 if ! command -v node >/dev/null 2>&1; then
-    warn "Node.js not found. Installing …"
-    if [ "$OS_NAME" = "macOS" ]; then
-        install_node_macos
-    else
-        install_node_linux
-    fi
+    echo ""
+    echo -e "${RED}${BOLD}✖  Node.js is not installed.${NC}" >&2
+    echo -e "${YELLOW}   Please install it from: https://nodejs.org/en/download" >&2
+    echo -e "   Any version ≥$MIN_NODE_MAJOR works — we will use whatever you have.${NC}" >&2
+    exit 1
 fi
 
-NODE_VERSION=$(node --version)          # e.g. v20.12.0
+NODE_VERSION=$(node --version)           # e.g. v22.11.0
 NODE_MAJOR=$(echo "$NODE_VERSION" | sed 's/v//' | cut -d. -f1)
 
+# Hard stop only if the version is truly ancient
 if [ "$NODE_MAJOR" -lt "$MIN_NODE_MAJOR" ]; then
-    error "Node.js $NODE_VERSION is too old. Minimum required: v${MIN_NODE_MAJOR}.\n  Please upgrade: https://nodejs.org/en/download"
+    error "Node.js $NODE_VERSION is too old (minimum: v${MIN_NODE_MAJOR}).\n  Please upgrade: https://nodejs.org/en/download"
 fi
-success "Node.js found: $NODE_VERSION"
+
+success "Node.js found: $NODE_VERSION (system)"
 
 # ============================================================
 # STEP 4 — npm
@@ -273,8 +254,8 @@ NPM_VERSION=$(npm --version)
 NPM_MAJOR=$(echo "$NPM_VERSION" | cut -d. -f1)
 
 if [ "$NPM_MAJOR" -lt "$MIN_NPM_MAJOR" ]; then
-    warn "npm $NPM_VERSION is old (minimum $MIN_NPM_MAJOR). Upgrading …"
-    npm install -g npm@latest || warn "Failed to upgrade npm. Continuing anyway."
+    warn "npm $NPM_VERSION is old (minimum v$MIN_NPM_MAJOR). Upgrading …"
+    npm install -g npm@latest 2>/dev/null || warn "Could not auto-upgrade npm. Continuing anyway."
 fi
 success "npm found: $(npm --version)"
 
@@ -314,8 +295,19 @@ step "Installing npm dependencies"
 
 cd "$PROJECT_DIR"
 
-info "Running: npm install …"
-npm install || error "npm install failed. Check the error above."
+# Use 'npm ci' when a lockfile exists — it skips dependency resolution
+# and is typically 2-3x faster than 'npm install'.
+# No output filtering — progress streams live so it never looks frozen.
+if [ -f "$PROJECT_DIR/package-lock.json" ]; then
+    info "Running: npm ci (fast install from lockfile) …"
+    npm ci \
+        || { warn "npm ci failed, retrying with npm install …"; npm install; } \
+        || error "npm install failed. Check your network connection and try again."
+else
+    info "Running: npm install …"
+    npm install \
+        || error "npm install failed. Check your network connection and try again."
+fi
 
 success "All npm dependencies installed."
 
@@ -406,16 +398,24 @@ while IFS='|' read -r shell_name config_file; do
     if [ ! -f "$config_file" ]; then
         CREATED_SHELL_PATHS="${CREATED_SHELL_PATHS}${config_file}\n"
     fi
-    touch "$config_file"
+
+    # ── Guard: skip if we cannot write to this config file ──
+    if ! touch "$config_file" 2>/dev/null; then
+        warn "No write permission for $config_file — skipping (MDM/corporate restriction)"
+        continue
+    fi
 
     # Append only if not already present
     if ! grep -qsF "$PROJECT_DIR/node_modules/.bin" "$config_file"; then
-        {
+        if {
             echo ""
             echo "# Added by Lifter-File-Viewer installer on $(date)"
             echo "$path_cmd"
-        } >> "$config_file"
-        SHELLS_CONFIGURED="${SHELLS_CONFIGURED}${shell_name}|${config_file}\n"
+        } >> "$config_file" 2>/dev/null; then
+            SHELLS_CONFIGURED="${SHELLS_CONFIGURED}${shell_name}|${config_file}\n"
+        else
+            warn "Could not write to $config_file — skipping (MDM/corporate restriction)"
+        fi
     else
         SHELLS_ALREADY_CONFIGURED="${SHELLS_ALREADY_CONFIGURED}${shell_name}|${config_file}\n"
     fi
