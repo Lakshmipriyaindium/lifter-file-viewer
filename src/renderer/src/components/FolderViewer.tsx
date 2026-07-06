@@ -31,6 +31,51 @@ const ipcRenderer = electron ? electron.ipcRenderer : null;
 const fs = (window as any).require ? (window as any).require('fs') : null;
 const path = (window as any).require ? (window as any).require('path') : null;
 
+interface EBProps {
+  children: React.ReactNode;
+  resetKey: string;
+}
+
+interface EBState {
+  hasError: boolean;
+}
+
+class ErrorBoundary extends React.Component<EBProps, EBState> {
+  constructor(props: EBProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): EBState {
+    return { hasError: true };
+  }
+
+  componentDidUpdate(prevProps: EBProps) {
+    if (prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8 text-center bg-white">
+          <div className="text-5xl mb-4">⚠️</div>
+          <h3 className="text-xl font-semibold mb-2 text-red-500">Visualization Rendering Error</h3>
+          <p className="mb-6 max-w-md">This file contains data that caused a crash during visualization rendering. It might have an unexpected structure.</p>
+          <button 
+            onClick={() => this.setState({ hasError: false })}
+            className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-all shadow-sm"
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function FolderViewer({ onBack }: { onBack: () => void }) {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
@@ -381,7 +426,9 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
               )}
               {activeTab === 'chart' && (
                 <div className="h-full w-full bg-white">
-                  {renderChart()}
+                  <ErrorBoundary resetKey={selectedFile?.path || ''}>
+                    {renderChart()}
+                  </ErrorBoundary>
                 </div>
               )}
             </div>

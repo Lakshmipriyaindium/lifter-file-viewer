@@ -89,6 +89,13 @@ fi
 REPO_URL="https://github.com/Lakshmipriyaindium/lifter-file-viewer.git"
 REPO_DIR_NAME="Lifter-File-Viewer"
 
+# ── Pre-built release (preferred for corporate machines) ─────
+# If a .dmg is published to GitHub Releases, the script will
+# download and install it directly — no npm/build needed.
+# Set to "true" to skip pre-built and always build from source.
+SKIP_PREBUILT="${SKIP_PREBUILT:-false}"
+GITHUB_RELEASES_API="https://api.github.com/repos/Lakshmipriyaindium/lifter-file-viewer/releases/latest"
+
 # ── Minimum required versions ────────────────────────────────
 # The app works on any Node ≥16. Whatever is already on the
 # machine will be used — we never change the system version.
@@ -157,7 +164,106 @@ fi
 success "curl found: $(curl --version | head -1 | awk '{print $2}')"
 
 # ============================================================
-# STEP 2 — Locate or clone the project source code
+# STEP 2 — Try pre-built release (fastest path, no npm needed)
+# Works on ALL machines including those with corporate firewalls
+# as long as the DMG is hosted somewhere accessible.
+# ============================================================
+step "Checking for pre-built release"
+
+PREBUILT_INSTALLED=false
+
+if [ "$SKIP_PREBUILT" = "true" ]; then
+    info "Skipping pre-built release (SKIP_PREBUILT=true). Building from source …"
+elif [ "$OS_NAME" != "macOS" ]; then
+    info "Pre-built DMG only available for macOS. Building from source for Linux …"
+else
+    info "Checking GitHub Releases for a pre-built installer …"
+
+    # Try to fetch the latest release metadata
+    RELEASE_JSON=$(curl -fsSL \
+        --connect-timeout 10 \
+        --speed-limit 1 --speed-time 8 \
+        "$GITHUB_RELEASES_API" 2>/dev/null || echo "")
+
+    if [ -z "$RELEASE_JSON" ]; then
+        warn "Could not reach GitHub API — no pre-built release available. Building from source …"
+    else
+        # Extract .dmg download URL from release JSON
+        DMG_URL=$(echo "$RELEASE_JSON" \
+            | grep -o '"browser_download_url": *"[^"]*\.dmg"' \
+            | head -1 \
+            | grep -o 'https://[^"]*' || true)
+
+        if [ -z "$DMG_URL" ]; then
+            info "No pre-built .dmg found in latest release. Building from source …"
+        else
+            info "Pre-built release found: $DMG_URL"
+            info "Downloading installer (this is the only download needed) …"
+
+            TMP_DMG=$(mktemp /tmp/lifter-installer-XXXXXX.dmg)
+
+            if curl -fL \
+                    --connect-timeout 15 \
+                    --speed-limit 100 \
+                    --speed-time 15 \
+                    --max-time 600 \
+                    -o "$TMP_DMG" \
+                    "$DMG_URL" 2>/dev/null; then
+
+                success "Downloaded pre-built installer."
+                info "Mounting DMG …"
+                MOUNT_POINT=$(mktemp -d)
+                hdiutil attach "$TMP_DMG" -mountpoint "$MOUNT_POINT" -nobrowse -quiet \
+                    || error "Failed to mount the downloaded DMG."
+
+                FOUND_APP=$(find "$MOUNT_POINT" -name "*.app" -maxdepth 2 | head -1 || true)
+                if [ -z "$FOUND_APP" ]; then
+                    hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
+                    rm -f "$TMP_DMG"
+                    warn "No .app found inside DMG — falling back to build from source."
+                else
+                    INSTALL_PATH="/Applications/$(basename "$FOUND_APP")"
+                    if [ -d "$INSTALL_PATH" ]; then
+                        sudo rm -rf "$INSTALL_PATH" 2>/dev/null \
+                            || rm -rf "$INSTALL_PATH" 2>/dev/null || true
+                    fi
+                    sudo cp -R "$FOUND_APP" "/Applications/" 2>/dev/null \
+                        || cp -R "$FOUND_APP" "/Applications/" \
+                        || error "Failed to copy app to /Applications. Try: sudo bash install.sh"
+
+                    hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
+                    rm -f "$TMP_DMG"
+
+                    # Remove quarantine
+                    sudo xattr -c "$INSTALL_PATH" 2>/dev/null || xattr -c "$INSTALL_PATH" 2>/dev/null || true
+                    sudo find "$INSTALL_PATH" -exec xattr -c {} + 2>/dev/null || true
+
+                    success "✅  Lifter-File-Viewer installed to /Applications (from pre-built release)."
+                    info "Launching …"
+                    open "$INSTALL_PATH"
+                    PREBUILT_INSTALLED=true
+                fi
+            else
+                rm -f "$TMP_DMG"
+                warn "Pre-built DMG download failed — building from source …"
+            fi
+        fi
+    fi
+fi
+
+# If pre-built install succeeded, skip all build steps
+if [ "$PREBUILT_INSTALLED" = true ]; then
+    echo ""
+    echo -e "${GREEN}${BOLD}  Lifter-File-Viewer has been installed and launched!${NC}"
+    echo -e "  Find it in: /Applications/Lifter-File-Viewer.app"
+    echo -e "  Open via Spotlight: ⌘ Space → Lifter-File-Viewer"
+    echo ""
+    exit 0
+fi
+
+# ============================================================
+# STEP 3 — Locate or clone the project source code
+# (Only reached when building from source)
 # ============================================================
 step "Locating project source"
 
@@ -305,7 +411,7 @@ ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install \
 success "npm packages installed."
 
 # ============================================================
-# STEP 7b — Download Electron binary (with mirror fallback)
+# STEP 7b — Download Electron binary (with stall-detection)
 # ============================================================
 step "Downloading Electron binary"
 
@@ -335,7 +441,6 @@ else
     else
         mkdir -p "$ELECTRON_CACHE_DIR"
 
-        # Try mirrors in order; each gets a 20s connect timeout
         MIRRORS=(
             "https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}"
             "https://npmmirror.com/mirrors/electron/v${ELECTRON_VERSION}"
@@ -345,32 +450,41 @@ else
         DOWNLOADED=false
         for mirror_url in "${MIRRORS[@]}"; do
             info "Trying: ${mirror_url}/${ELECTRON_ZIP} …"
+            # --speed-limit 1 --speed-time 15 : abort if speed drops below
+            # 1 byte/sec for 15 seconds — catches stalled downloads that
+            # established a TCP connection but then got throttled to zero.
             if curl -fL \
-                    --connect-timeout 20 \
+                    --connect-timeout 15 \
+                    --speed-limit 1 \
+                    --speed-time 15 \
                     --max-time 300 \
-                    --retry 2 \
                     -o "$ELECTRON_CACHE_FILE" \
                     "${mirror_url}/${ELECTRON_ZIP}" 2>/dev/null; then
                 DOWNLOADED=true
-                success "Electron binary downloaded from: $mirror_url"
+                success "Electron binary downloaded."
                 break
             else
-                warn "Could not reach: $mirror_url — trying next …"
+                warn "Stalled or blocked: $mirror_url — trying next …"
                 rm -f "$ELECTRON_CACHE_FILE"
             fi
         done
 
         if [ "$DOWNLOADED" = false ]; then
             echo ""
-            echo -e "${YELLOW}${BOLD}⚠  Electron binary could not be downloaded.${NC}"
-            echo -e "${YELLOW}   All download servers are blocked by this machine's firewall."
+            echo -e "${YELLOW}${BOLD}⚠  Electron binary could not be downloaded (firewall blocked).${NC}"
             echo ""
-            echo -e "   To fix this, ask your IT/network team to whitelist:${NC}"
-            echo "     • github.com"
-            echo "     • npmmirror.com"
-            echo "     • cdn.npmmirror.com"
+            echo -e "${BOLD}  ── Manual fix (do this on a machine with internet access): ──${NC}"
             echo ""
-            echo -e "${YELLOW}   The build step will attempt its own download and may also fail.${NC}"
+            echo "  1. Download this file on any machine that has internet:"
+            echo "     https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}/${ELECTRON_ZIP}"
+            echo ""
+            echo "  2. Copy it to this path on this Mac:"
+            echo "     ${ELECTRON_CACHE_FILE}"
+            echo ""
+            echo "  3. Re-run:  bash install.sh"
+            echo "     (It will find the cached file and skip the download)"
+            echo ""
+            echo -e "${YELLOW}  Continuing install — build step may also fail without the binary.${NC}"
             echo ""
         fi
     fi
@@ -590,17 +704,23 @@ if [ "$OS_NAME" = "macOS" ]; then
     fi
 
     INSTALL_PATH="/Applications/$(basename "$FOUND_APP")"
-    info "Installing to $INSTALL_PATH …"
+    USER_INSTALL_PATH="$HOME/Applications/$(basename "$FOUND_APP")"
+    INSTALLED_TO=""
 
-    # Remove previous version if it exists
-    if [ -d "$INSTALL_PATH" ]; then
-        info "Removing previous installation …"
-        rm -rf "$INSTALL_PATH"
+    # ── Try /Applications (needs admin). Fall back to ~/Applications. ──
+    if sudo cp -R "$FOUND_APP" "/Applications/" 2>/dev/null \
+            || cp -R "$FOUND_APP" "/Applications/" 2>/dev/null; then
+        INSTALLED_TO="$INSTALL_PATH"
+        success "App installed to /Applications."
+    else
+        warn "No admin rights — installing to ~/Applications instead (no password needed)."
+        mkdir -p "$HOME/Applications"
+        [ -d "$USER_INSTALL_PATH" ] && rm -rf "$USER_INSTALL_PATH"
+        cp -R "$FOUND_APP" "$HOME/Applications/" \
+            || error "Failed to install app. Please contact your IT team."
+        INSTALLED_TO="$USER_INSTALL_PATH"
+        success "App installed to $USER_INSTALL_PATH"
     fi
-
-    cp -R "$FOUND_APP" "/Applications/" \
-        || error "Failed to copy app to /Applications. Try running with sudo."
-    success "App copied to $INSTALL_PATH"
 
     # ── Unmount the DMG ───────────────────────────────────────
     hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
@@ -608,16 +728,17 @@ if [ "$OS_NAME" = "macOS" ]; then
 
     # ── Remove quarantine from the installed .app ─────────────
     info "Removing macOS quarantine from installed app …"
-    sudo xattr -c "$INSTALL_PATH" 2>/dev/null || \
-        xattr -c "$INSTALL_PATH" 2>/dev/null || true
-    sudo find "$INSTALL_PATH" -exec xattr -c {} + 2>/dev/null || true
-    success "Security restrictions removed from $INSTALL_PATH"
+    sudo xattr -c "$INSTALLED_TO" 2>/dev/null || \
+        xattr -c "$INSTALLED_TO" 2>/dev/null || true
+    sudo find "$INSTALLED_TO" -exec xattr -c {} + 2>/dev/null \
+        || find "$INSTALLED_TO" -exec xattr -c {} + 2>/dev/null || true
+    success "Security restrictions removed."
 
-    success "✅  Lifter-File-Viewer is now installed in /Applications!"
+    success "✅  Lifter-File-Viewer installed successfully!"
 
     # ── Launch the installed app ──────────────────────────────
     info "Launching Lifter-File-Viewer …"
-    open "$INSTALL_PATH"
+    open "$INSTALLED_TO"
 
 elif [ "$OS_NAME" = "Linux" ]; then
     # ── Find the generated AppImage ───────────────────────────

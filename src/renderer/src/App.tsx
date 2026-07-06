@@ -177,60 +177,6 @@ function App() {
     setError('');
   };
 
-  // ── Error screen (e.g. JSON parse failure, unknown file type) ──
-  if (error) {
-    return (
-      <div style={{
-        width: '100%',
-        minHeight: '100vh',
-        backgroundColor: '#f9fafb',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-        boxSizing: 'border-box',
-      }}>
-        <div style={{
-          maxWidth: '448px',
-          width: '100%',
-          backgroundColor: 'white',
-          borderRadius: '1rem',
-          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-          padding: '2.5rem',
-          textAlign: 'center',
-          border: '1px solid #fee2e2',
-          boxSizing: 'border-box',
-        }}>
-          <div style={{ fontSize: '3.75rem', marginBottom: '1.5rem' }}>⚠️</div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827', marginBottom: '1rem', fontFamily: 'system-ui, sans-serif' }}>
-            Unsupported File
-          </h2>
-          <p style={{ color: '#4b5563', marginBottom: '2rem', lineHeight: '1.625', fontFamily: 'system-ui, sans-serif' }}>
-            {error}
-          </p>
-          <button
-            onClick={resetApp}
-            style={{
-              width: '100%',
-              backgroundColor: '#fb851e',
-              color: 'white',
-              fontWeight: 'bold',
-              padding: '0.75rem 1.5rem',
-              borderRadius: '0.75rem',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '1rem',
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#e67819')}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#fb851e')}
-          >
-            ← Back to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // ── Visualizer routes ──
   if (mode === 'total_analysis' && data) {
@@ -614,6 +560,23 @@ function App() {
           </label>
         </div>
       </div>
+
+      {/* Error Popup Modal */}
+      {error && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-red-100 p-8 max-w-md w-full text-center animate-in fade-in zoom-in duration-200">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Failed to Load File</h2>
+            <p className="text-gray-600 mb-6 text-sm leading-relaxed">{error}</p>
+            <button
+              onClick={() => setError('')}
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
