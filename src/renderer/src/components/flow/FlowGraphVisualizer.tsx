@@ -413,7 +413,7 @@ const FlowGraphVisualizer :React.FC<{
   }, [selectedNode, savedFlows, selectedNodeTypes, graphData.links, graphData.nodes]);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="flex h-full bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Sidebar */}
       <div className="w-96 bg-white dark:bg-gray-900/95 backdrop-blur border-r border-gray-200 dark:border-orange-500/20 flex flex-col shadow-sm">
         <div className="p-6 bg-gray-50 dark:bg-gradient-to-br dark:from-orange-500/10 dark:to-orange-500/5 border-b border-gray-200 dark:border-orange-500/20">

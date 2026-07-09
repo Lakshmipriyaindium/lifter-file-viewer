@@ -17,6 +17,11 @@ import LegacyVisualizer from './legacy-analysis/LegacyVisualizer';
 import ComponentDistributionViewer from './component-distribution/ComponentDistributionViewer';
 import SBOMViewer from './sbom/SBOMViewer';
 import SecurityReportViewer from './security/SecurityReportViewer';
+import ModuleAnalysisViz from './module-analysis/ModuleAnalysis';
+import ProjectAnalysisDashboard from './project-analysis/ProjectAnalysisDashboard';
+import CodebaseAnalyzer from './project-analysis/CodebaseAnalyzer';
+import { ApiAnalysisVisualization } from './dotnet-api/DotNetAPIVisualizer';
+import ProgramFlowView from './program-flow/ProgramFlowView';
 
 // Types for folder structure
 interface FileNode {
@@ -30,51 +35,6 @@ const electron = (window as any).require ? (window as any).require('electron') :
 const ipcRenderer = electron ? electron.ipcRenderer : null;
 const fs = (window as any).require ? (window as any).require('fs') : null;
 const path = (window as any).require ? (window as any).require('path') : null;
-
-interface EBProps {
-  children: React.ReactNode;
-  resetKey: string;
-}
-
-interface EBState {
-  hasError: boolean;
-}
-
-class ErrorBoundary extends React.Component<EBProps, EBState> {
-  constructor(props: EBProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(): EBState {
-    return { hasError: true };
-  }
-
-  componentDidUpdate(prevProps: EBProps) {
-    if (prevProps.resetKey !== this.props.resetKey) {
-      this.setState({ hasError: false });
-    }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8 text-center bg-white">
-          <div className="text-5xl mb-4">⚠️</div>
-          <h3 className="text-xl font-semibold mb-2 text-red-500">Visualization Rendering Error</h3>
-          <p className="mb-6 max-w-md">This file contains data that caused a crash during visualization rendering. It might have an unexpected structure.</p>
-          <button 
-            onClick={() => this.setState({ hasError: false })}
-            className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-all shadow-sm"
-          >
-            Try Again
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 export default function FolderViewer({ onBack }: { onBack: () => void }) {
   const [rootPath, setRootPath] = useState<string | null>(null);
@@ -122,12 +82,16 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
     }
   };
 
+  // Files/folders to always hide in the explorer
+  const HIDDEN_NAMES = new Set(['.DS_Store', '__MACOSX', 'Thumbs.db', 'desktop.ini', '.Spotlight-V100', '.Trashes']);
+  const isHidden = (name: string) => name.startsWith('.') || HIDDEN_NAMES.has(name);
+
   const scanDirectory = (dirPath: string) => {
     if (!fs || !path) return;
     
     const buildTree = (currentPath: string): FileNode[] => {
       try {
-        const items = fs.readdirSync(currentPath);
+        const items = (fs.readdirSync(currentPath) as string[]).filter((name: string) => !isHidden(name));
         return items.map((item: string) => {
           const fullPath = path.join(currentPath, item);
           const stats = fs.statSync(fullPath);
@@ -180,7 +144,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
     const updateTree = (nodes: FileNode[]): FileNode[] => {
       return nodes.map(node => {
         if (node.path === folderPath) {
-          const children = fs.readdirSync(node.path).map((item: string) => {
+          const children = (fs.readdirSync(node.path) as string[]).filter((name: string) => !isHidden(name)).map((item: string) => {
             const fullPath = path.join(node.path, item);
             const stats = fs.statSync(fullPath);
             return {
@@ -288,6 +252,11 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       if (mode === 'component_distribution') return <ComponentDistributionViewer data={data} />;
       if (mode === 'sbom') return <SBOMViewer data={data} />;
       if (mode === 'security') return <SecurityReportViewer data={data} />;
+      if (mode === 'module_analysis') return <ModuleAnalysisViz data={data} />;
+      if (mode === 'consolidated_project_inventory') return <ProjectAnalysisDashboard data={data} />;
+      if (mode === 'project_analysis_result') return <CodebaseAnalyzer data={data} />;
+      if (mode === 'API-report') return <ApiAnalysisVisualization data={data} />;
+      if (mode === 'program_flow') return <ProgramFlowView data={data} />;
       
       return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8 text-center">
@@ -425,10 +394,8 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
                 </div>
               )}
               {activeTab === 'chart' && (
-                <div className="h-full w-full bg-white">
-                  <ErrorBoundary resetKey={selectedFile?.path || ''}>
-                    {renderChart()}
-                  </ErrorBoundary>
+                <div className="h-full w-full bg-white overflow-auto">
+                  {renderChart()}
                 </div>
               )}
             </div>

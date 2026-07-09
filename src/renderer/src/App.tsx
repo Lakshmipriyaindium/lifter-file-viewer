@@ -15,6 +15,10 @@ import ConsolidatedAnalysisViewer from './components/consolidated-analysis/Conso
 import LegacyVisualizer from './components/legacy-analysis/LegacyVisualizer';
 import { determineChartType } from './lib/utils';
 import FolderViewer from './components/FolderViewer';
+import ModuleAnalysisViz from './components/module-analysis/ModuleAnalysis';
+import ProjectAnalysisDashboard from './components/project-analysis/ProjectAnalysisDashboard';
+import CodebaseAnalyzer from './components/project-analysis/CodebaseAnalyzer';
+import { ApiAnalysisVisualization } from './components/dotnet-api/DotNetAPIVisualizer';
 
 // ──────────────────────────────────────────────
 // Error Boundary – catches render-time crashes
@@ -127,7 +131,7 @@ function App() {
   const [rawText, setRawText] = useState<string>('');
   const [error, setError] = useState('');
   const [mode, setMode] = useState<
-    'mermaid' | 'plantuml' | 'total_analysis' | 'business_rules' | 'd3_graph' | 'd3_graph_v2' | 'client_customizations' | 'customizations_by_node' | 'kg' | 'user_stories' | 'business_process_flow' | 'consolidated_analysis' | 'legacy_consolidated_analysis' | 'consolidated_business_reports' | 'business_terms' | null
+    'mermaid' | 'plantuml' | 'total_analysis' | 'business_rules' | 'd3_graph' | 'd3_graph_v2' | 'client_customizations' | 'customizations_by_node' | 'kg' | 'user_stories' | 'business_process_flow' | 'consolidated_analysis' | 'legacy_consolidated_analysis' | 'consolidated_business_reports' | 'business_terms' | 'module_analysis' | 'consolidated_project_inventory' | 'project_analysis_result' | 'API-report' | null
   >(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, selectedMode: string) => {
@@ -154,7 +158,7 @@ function App() {
         );
       }
 
-      const jsonModes = ['total_analysis', 'business_rules', 'd3_graph', 'd3_graph_v2', 'client_customizations', 'customizations_by_node', 'kg', 'user_stories', 'business_process_flow', 'consolidated_analysis', 'consolidated_business_reports', 'business_terms'];
+      const jsonModes = ['total_analysis', 'business_rules', 'd3_graph', 'd3_graph_v2', 'client_customizations', 'customizations_by_node', 'kg', 'user_stories', 'business_process_flow', 'consolidated_analysis', 'consolidated_business_reports', 'business_terms', 'module_analysis', 'consolidated_project_inventory', 'project_analysis_result', 'API-report'];
       if (jsonModes.includes(actualMode)) {
         const parsedData = JSON.parse(text); // throws if invalid JSON
         setData(parsedData);
@@ -177,6 +181,60 @@ function App() {
     setError('');
   };
 
+  // ── Error screen (e.g. JSON parse failure, unknown file type) ──
+  if (error) {
+    return (
+      <div style={{
+        width: '100%',
+        minHeight: '100vh',
+        backgroundColor: '#f9fafb',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem',
+        boxSizing: 'border-box',
+      }}>
+        <div style={{
+          maxWidth: '448px',
+          width: '100%',
+          backgroundColor: 'white',
+          borderRadius: '1rem',
+          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+          padding: '2.5rem',
+          textAlign: 'center',
+          border: '1px solid #fee2e2',
+          boxSizing: 'border-box',
+        }}>
+          <div style={{ fontSize: '3.75rem', marginBottom: '1.5rem' }}>⚠️</div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827', marginBottom: '1rem', fontFamily: 'system-ui, sans-serif' }}>
+            Unsupported File
+          </h2>
+          <p style={{ color: '#4b5563', marginBottom: '2rem', lineHeight: '1.625', fontFamily: 'system-ui, sans-serif' }}>
+            {error}
+          </p>
+          <button
+            onClick={resetApp}
+            style={{
+              width: '100%',
+              backgroundColor: '#fb851e',
+              color: 'white',
+              fontWeight: 'bold',
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.75rem',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '1rem',
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#e67819')}
+            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#fb851e')}
+          >
+            ← Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Visualizer routes ──
   if (mode === 'total_analysis' && data) {
@@ -306,6 +364,50 @@ function App() {
         <ViewerHeader onBack={resetApp} />
         <ErrorBoundary onReset={resetApp}>
           <BusinessTermsVisualizer data={data} />
+        </ErrorBoundary>
+      </div>
+    );
+  }
+
+  if (mode === 'module_analysis' && data) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50">
+        <ViewerHeader onBack={resetApp} />
+        <ErrorBoundary onReset={resetApp}>
+          <ModuleAnalysisViz data={data} />
+        </ErrorBoundary>
+      </div>
+    );
+  }
+
+  if (mode === 'consolidated_project_inventory' && data) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50">
+        <ViewerHeader onBack={resetApp} />
+        <ErrorBoundary onReset={resetApp}>
+          <ProjectAnalysisDashboard data={data} />
+        </ErrorBoundary>
+      </div>
+    );
+  }
+
+  if (mode === 'project_analysis_result' && data) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50">
+        <ViewerHeader onBack={resetApp} />
+        <ErrorBoundary onReset={resetApp}>
+          <CodebaseAnalyzer data={data} />
+        </ErrorBoundary>
+      </div>
+    );
+  }
+
+  if (mode === 'API-report' && data) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50">
+        <ViewerHeader onBack={resetApp} />
+        <ErrorBoundary onReset={resetApp}>
+          <ApiAnalysisVisualization data={data} />
         </ErrorBoundary>
       </div>
     );
@@ -560,23 +662,6 @@ function App() {
           </label>
         </div>
       </div>
-
-      {/* Error Popup Modal */}
-      {error && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-red-100 p-8 max-w-md w-full text-center animate-in fade-in zoom-in duration-200">
-            <div className="text-5xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Failed to Load File</h2>
-            <p className="text-gray-600 mb-6 text-sm leading-relaxed">{error}</p>
-            <button
-              onClick={() => setError('')}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

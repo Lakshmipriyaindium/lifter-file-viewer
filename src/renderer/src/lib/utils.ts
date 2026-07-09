@@ -76,7 +76,9 @@ export const determineChartType = (fileName: string, content: string): string | 
     if (lowerName.includes("unified_knowledge_graph")) return "kg";
     if (lowerName.includes("user_stories")) return "user_stories";
     if (lowerName.includes("business_process_flow")) return "business_process_flow";
-    if (lowerName.includes("consolidated_analysis")) {
+    if (lowerName.includes("project_analysis_result")) return "project_analysis_result";
+    if (lowerName.includes("consolidated_project_inventory")) return "consolidated_project_inventory";
+    if (lowerName.includes("consolidated_analysis") || lowerName.includes("consolidated_gims_analysis")) {
       try {
         const data = JSON.parse(content);
         // Legacy format has 'domains' and 'business_features_l1'
@@ -93,6 +95,9 @@ export const determineChartType = (fileName: string, content: string): string | 
     if (lowerName.includes("component-distribution")) return "component_distribution";
     if (lowerName.includes("cyclonedx-sbom")) return "sbom";
     if (lowerName.includes("security-report")) return "security";
+    if (lowerName.includes("module_analysis")) return "module_analysis";
+    if (lowerName.includes("api-report")) return "API-report";
+    if (lowerName.includes("program_flow")) return "program_flow";
   }
 
   return null;
