@@ -82,7 +82,7 @@ if ([string]::IsNullOrEmpty($ScriptDir)) {
     $ScriptDir = Get-Location
 }
 
-$RepoUrl = "https://github.com/IndiumSoftware-AppEngineering/Lifter-File-Viewer.git"
+$RepoUrl = "https://github.com/Lakshmipriyaindium/lifter-file-viewer.git"
 $RepoDirName = "Lifter-File-Viewer"
 $ProjectDir = $ScriptDir
 
