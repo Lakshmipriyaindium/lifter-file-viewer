@@ -1,11 +1,12 @@
 @echo off
 :: Lifter-File-Viewer - Zero-Permission Windows Setup Script
 echo Launching automated Windows installer...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ScriptDir='%~dp0'; Get-Content '%~f0' | Select-Object -Skip 5 | Out-String | Invoke-Expression"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ScriptDir='%~dp0'; Invoke-Expression (([System.IO.File]::ReadAllText('%~f0') -split '(?ms)^# <POWERSHELL_START>')[1])"
 echo ------------------------------------------------
 pause
 exit /b
 
+# <POWERSHELL_START>
 # ============================================================
 # Lifter-File-Viewer — Windows Setup & Installer Script
 # ============================================================
@@ -33,7 +34,7 @@ if (-not $hasGit) {
         Write-Host "⌛ Git not found. Installing Git via winget..." -ForegroundColor Cyan
         & winget install --id Git.Git -e --silent --accept-source-agreements --accept-package-agreements
         # Refresh Path env
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
     } else {
         Write-Error "Git is not installed. Please download and install Git from https://git-scm.com/"
         exit 1
@@ -49,7 +50,7 @@ if (-not $hasNode) {
         Write-Host "⌛ Node.js not found. Installing Node.js LTS via winget..." -ForegroundColor Cyan
         & winget install --id OpenJS.NodeJS.LTS -e --silent --accept-source-agreements --accept-package-agreements
         # Refresh path env variables to make node available immediately in this session
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
         
         # Verify again
         $hasNode = $null -ne (Get-Command node -ErrorAction SilentlyContinue)
@@ -136,6 +137,7 @@ Write-Host "✔ All npm dependencies installed." -ForegroundColor Green
 # ── Step 4: Build & package application ─────────────────────
 Write-Host "`n━━━  Building the application  ━━━" -ForegroundColor White
 Write-Host "⌛ Running: npm run dist (this may take a few minutes) ..." -ForegroundColor Cyan
+$env:NODE_TLS_REJECT_UNAUTHORIZED="0"
 & npm run dist
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Application packaging failed."

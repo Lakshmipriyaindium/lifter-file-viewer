@@ -67,8 +67,8 @@
       "dist/**/*",
       "src/main/**/*",
       "package.json",
-      "setup.command",
-      "setup_win.bat"
+      "install.sh",
+      "install.bat"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
@@ -78,13 +78,16 @@
     },
     "win": {
       "target": [
-        "portable"
+        "nsis"
       ],
       "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Lifter-File-Viewer"
     }
   }
 }
