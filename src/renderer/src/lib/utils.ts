@@ -68,6 +68,7 @@ export const determineChartType = (fileName: string, content: string): string | 
     const lowerName = fileName.toLowerCase();
 
     if (lowerName.includes("total_analysis_results")) return "total_analysis";
+    if (lowerName.includes("hierarchical_features") || lowerName.includes("hierarchical_fectures")) return "hierarchical_features";
     if (lowerName.includes("business_rules")) return "business_rules";
     if (lowerName.includes("_d3_v2") || lowerName.includes("call_graph")) return "d3_graph_v2";
     if (lowerName.includes("_d3")) return "d3_graph";

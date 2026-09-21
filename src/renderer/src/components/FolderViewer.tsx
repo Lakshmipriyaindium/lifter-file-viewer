@@ -22,6 +22,7 @@ import ProjectAnalysisDashboard from './project-analysis/ProjectAnalysisDashboar
 import CodebaseAnalyzer from './project-analysis/CodebaseAnalyzer';
 import { ApiAnalysisVisualization } from './dotnet-api/DotNetAPIVisualizer';
 import ProgramFlowView from './program-flow/ProgramFlowView';
+import HierarchicalFeatureAnalysis from './feature-analysis/hierachy-feature';
 
 // Types for folder structure
 interface FileNode {
@@ -238,6 +239,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       
       const data = JSON.parse(fileContent);
       if (mode === 'total_analysis') return <TotalAnalysisVisualizer data={data} projectId="local" artifactId="local" />;
+      if (mode === 'hierarchical_features') return <HierarchicalFeatureAnalysis data={data} />;
       if (mode === 'business_rules') return <BusinessRulesVisualizer data={data} />;
       if (mode === 'd3_graph_v2') return <FlowGraphVisualizer data={data} />;
       if (mode === 'client_customizations') return <ClientCustomizationVisualizer data={data} />;

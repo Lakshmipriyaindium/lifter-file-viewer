@@ -19,6 +19,7 @@ import ModuleAnalysisViz from './components/module-analysis/ModuleAnalysis';
 import ProjectAnalysisDashboard from './components/project-analysis/ProjectAnalysisDashboard';
 import CodebaseAnalyzer from './components/project-analysis/CodebaseAnalyzer';
 import { ApiAnalysisVisualization } from './components/dotnet-api/DotNetAPIVisualizer';
+import HierarchicalFeatureAnalysis from './components/feature-analysis/hierachy-feature';
 
 // ──────────────────────────────────────────────
 // Error Boundary – catches render-time crashes
@@ -158,7 +159,7 @@ function App() {
         );
       }
 
-      const jsonModes = ['total_analysis', 'business_rules', 'd3_graph', 'd3_graph_v2', 'client_customizations', 'customizations_by_node', 'kg', 'user_stories', 'business_process_flow', 'consolidated_analysis', 'consolidated_business_reports', 'business_terms', 'module_analysis', 'consolidated_project_inventory', 'project_analysis_result', 'API-report'];
+      const jsonModes = ['total_analysis', 'hierarchical_features', 'business_rules', 'd3_graph', 'd3_graph_v2', 'client_customizations', 'customizations_by_node', 'kg', 'user_stories', 'business_process_flow', 'consolidated_analysis', 'consolidated_business_reports', 'business_terms', 'module_analysis', 'consolidated_project_inventory', 'project_analysis_result', 'API-report'];
       if (jsonModes.includes(actualMode)) {
         const parsedData = JSON.parse(text); // throws if invalid JSON
         setData(parsedData);
@@ -243,6 +244,17 @@ function App() {
         <ViewerHeader onBack={resetApp} />
         <ErrorBoundary onReset={resetApp}>
           <TotalAnalysisVisualizer data={data} projectId="local" artifactId="local" />
+        </ErrorBoundary>
+      </div>
+    );
+  }
+
+  if (mode === 'hierarchical_features' && data) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50">
+        <ViewerHeader onBack={resetApp} />
+        <ErrorBoundary onReset={resetApp}>
+          <HierarchicalFeatureAnalysis data={data} />
         </ErrorBoundary>
       </div>
     );
@@ -544,6 +556,19 @@ function App() {
               <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
                 Select JSON File
                 <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'total_analysis')} className="hidden" />
+              </label>
+            </div>
+          </div>
+
+          {/* Hierarchical Features Card */}
+          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group relative">
+            <div className="p-8 flex-grow flex flex-col items-center">
+              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🌳</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Hierarchical Features</h2>
+              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Multi-level domain and sub-feature hierarchy from hierarchical_features.json.</p>
+              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
+                Select JSON File
+                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'hierarchical_features')} className="hidden" />
               </label>
             </div>
           </div>
