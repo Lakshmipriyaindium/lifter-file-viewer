@@ -216,7 +216,26 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
   };
 
   const [isTruncated, setIsTruncated] = useState<boolean>(false);
+  const [isTooLarge, setIsTooLarge] = useState<boolean>(false);
   const [fileSizeStr, setFileSizeStr] = useState<string>('');
+
+  const loadPreview = (file: FileNode) => {
+    if (!fs) return;
+    try {
+      const PREVIEW_LIMIT = 2 * 1024 * 1024; // 2MB preview
+      const buffer = Buffer.alloc(PREVIEW_LIMIT);
+      const fd = fs.openSync(file.path, 'r');
+      fs.readSync(fd, buffer, 0, PREVIEW_LIMIT, 0);
+      fs.closeSync(fd);
+      const content = buffer.toString('utf-8');
+      setFileContent(content);
+      setIsTruncated(true);
+      setIsTooLarge(false);
+    } catch (err: any) {
+      console.error('Error loading preview:', err);
+      setFileContent(`Error loading file preview: ${err.message || err}`);
+    }
+  };
 
   const handleFileClick = (file: FileNode) => {
     if (file.isDirectory) {
@@ -224,20 +243,31 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
     } else {
       setSelectedFile(file);
       setIsTruncated(false);
+      setIsTooLarge(false);
       setFileSizeStr('');
       if (fs) {
         try {
           const stats = fs.statSync(file.path);
-          const sizeMB = (stats.size / (1024 * 1024)).toFixed(1);
+          const sizeMBVal = stats.size / (1024 * 1024);
+          const sizeMB = sizeMBVal.toFixed(1);
           setFileSizeStr(`${sizeMB} MB`);
 
-          // If file is larger than 10MB, truncate for the editor/chart to avoid freezing the renderer
-          const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-          if (stats.size > MAX_SIZE) {
+          // Special check: If file is analysis_state.json or very large (>= 15MB)
+          const isAnalysisState = file.name.toLowerCase().includes('analysis_state');
+          if (isAnalysisState || sizeMBVal >= 15) {
+            setIsTooLarge(true);
+            setFileContent('');
+            setActiveTab('editor');
+            return;
+          }
+
+          // If file is between 5MB and 15MB, load preview chunk
+          const PREVIEW_LIMIT = 2 * 1024 * 1024; // 2MB preview
+          if (stats.size > PREVIEW_LIMIT) {
             setIsTruncated(true);
-            const buffer = Buffer.alloc(MAX_SIZE);
+            const buffer = Buffer.alloc(PREVIEW_LIMIT);
             const fd = fs.openSync(file.path, 'r');
-            fs.readSync(fd, buffer, 0, MAX_SIZE, 0);
+            fs.readSync(fd, buffer, 0, PREVIEW_LIMIT, 0);
             fs.closeSync(fd);
             const content = buffer.toString('utf-8');
             setFileContent(content);
@@ -462,18 +492,43 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
             <div className="h-full w-full">
               {activeTab === 'editor' && (
                 <div className="h-full w-full flex flex-col">
-                  {isTruncated && (
-                    <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 text-xs text-amber-800 flex items-center justify-between">
-                      <span>
-                        ⚠️ <strong>Large File ({fileSizeStr}):</strong> Showing first 10MB to maintain smooth editor performance.
-                      </span>
+                  {isTooLarge ? (
+                    <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center bg-white">
+                      <div className="text-6xl mb-4">📦</div>
+                      <h3 className="text-xl font-bold text-gray-800 mb-2">
+                        Very Large File ({fileSizeStr || 'Huge'})
+                      </h3>
+                      <p className="text-sm text-gray-500 max-w-md mb-2">
+                        <strong className="text-gray-700">{selectedFile.name}</strong> is very large ({fileSizeStr}).
+                      </p>
+                      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-lg max-w-lg mb-6 leading-relaxed">
+                        ⚠️ Rendering huge files (like internal engine state dumps or graph matrices) in the editor will cause high memory usage and can freeze or crash the window.
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => loadPreview(selectedFile)}
+                          className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-2"
+                        >
+                          <span>👁️</span> Load 2MB Quick Preview
+                        </button>
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      {isTruncated && (
+                        <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 text-xs text-amber-800 flex items-center justify-between shrink-0">
+                          <span>
+                            ⚠️ <strong>Large File ({fileSizeStr}):</strong> Showing first 2MB preview to keep editor fast and prevent crashes.
+                          </span>
+                        </div>
+                      )}
+                      <textarea 
+                        value={fileContent}
+                        readOnly
+                        className="w-full flex-grow p-6 text-sm font-mono bg-white border-none focus:outline-none resize-none"
+                      />
+                    </>
                   )}
-                  <textarea 
-                    value={fileContent}
-                    readOnly
-                    className="w-full flex-grow p-6 text-sm font-mono bg-white border-none focus:outline-none resize-none"
-                  />
                 </div>
               )}
               {activeTab === 'chart' && (

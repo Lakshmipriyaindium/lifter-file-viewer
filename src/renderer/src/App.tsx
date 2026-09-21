@@ -146,6 +146,15 @@ function App() {
     setMode(null);
 
     try {
+      const sizeMB = file.size / (1024 * 1024);
+      const isAnalysisState = file.name.toLowerCase().includes('analysis_state');
+
+      if (isAnalysisState || sizeMB >= 15) {
+        throw new Error(
+          `File "${file.name}" is very large (${sizeMB.toFixed(1)} MB). It cannot be opened directly in the visualizer because parsing it will freeze or crash the window. Please view it using an external editor or open it via Folder View.`
+        );
+      }
+
       const text = await file.text();
 
       let actualMode = selectedMode;
