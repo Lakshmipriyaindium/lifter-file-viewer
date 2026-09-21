@@ -1,6 +1,6 @@
-// Adapted for Lifter-File-Viewer (removed 'use client')
+'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -18,77 +18,74 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
-import { GraphData, GraphNode, GraphLink, EntityType, CustomNodeProps, GraphFilters, KnowledgeGraphVisualizationProps, ConnectedNodesResult, LayoutedElements, CustomNodeData } from './type';
+import { GraphData, GraphNode, GraphLink, CustomNodeProps, GraphFilters, KnowledgeGraphVisualizationProps, ConnectedNodesResult, LayoutedElements, CustomNodeData } from './type';
 import { downloadSvg, exportToSvg } from './GraphExportUtils';
+const usePermissions = () => ({ hasPermission: (_perm: string) => true });
 
 // Dynamic color generator
 const generateColorPalette = (count: number): string[] => {
   const baseColors = [
-    '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', 
+    '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444',
     '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6',
     '#f43f5e', '#d946ef', '#0ea5e9', '#84cc16', '#64748b'
   ];
-  
+
   if (count <= baseColors.length) {
     return baseColors.slice(0, count);
   }
-  
+
   // Generate additional colors if needed
   const additionalColors = [];
   for (let i = baseColors.length; i < count; i++) {
     const hue = (i * 137.5) % 360; // Golden angle approximation
     additionalColors.push(`hsl(${hue}, 70%, 50%)`);
   }
-  
+
   return [...baseColors, ...additionalColors];
 };
 
 // Extract entity types and their colors dynamically
 const extractEntityTypesWithColors = (data?: GraphData): { type: string; color: string }[] => {
   if (!data?.metadata?.nodesByType) return [];
-  
+
   const entityTypes = Object.keys(data.metadata.nodesByType);
   const colorPalette = generateColorPalette(entityTypes.length);
-  
+
   return entityTypes.map((type, index) => ({
     type,
     color: colorPalette[index % colorPalette.length]
   }));
 };
 
+const addValidTypes = (types: (string | undefined)[], set: Set<string>) => {
+  for (const type of types) {
+    if (type && type.trim() !== '') {
+      set.add(type);
+    }
+  }
+};
+
 // Extract relationship types dynamically from the data
 const extractRelationshipTypes = (data?: GraphData): string[] => {
   const relationshipTypes = new Set<string>();
-  
+
   if (!data) return [];
-  
+
   // 1. Get from edgesByType metadata
   if (data.metadata?.edgesByType) {
-    for (const type of Object.keys(data.metadata.edgesByType)) {
-      if (type && type.trim() !== '') {
-        relationshipTypes.add(type);
-      }
-    }
+    addValidTypes(Object.keys(data.metadata.edgesByType), relationshipTypes);
   }
-  
+
   // 2. Get from linksByType metadata
   if (data.metadata?.linksByType) {
-    for (const type of Object.keys(data.metadata.linksByType)) {
-      if (type && type.trim() !== '') {
-        relationshipTypes.add(type);
-      }
-    }
+    addValidTypes(Object.keys(data.metadata.linksByType), relationshipTypes);
   }
-  
+
   // 3. Get from actual links array
   if (data.links && Array.isArray(data.links)) {
-    for (const link of data.links) {
-      if (link?.type && link.type.trim() !== '') {
-        relationshipTypes.add(link.type);
-      }
-    }
-  }  
-  return Array.from(relationshipTypes).sort();
+    addValidTypes(data.links.map(link => link?.type), relationshipTypes);
+  }
+  return Array.from(relationshipTypes).sort((a, b) => a.localeCompare(b));
 };
 
 // Generate colors dynamically based on types
@@ -101,38 +98,38 @@ const getDynamicColor = (type: string, allTypes: string[]): string => {
 // Enhanced helper function to get accurate count for each relationship type
 const getRelationshipCount = (type: string, data?: GraphData): number => {
   if (!data) return 0;
-  
+
   // Count from actual links array (most accurate)
   if (data.links) {
     return data.links.filter(link => link?.type === type).length;
   }
-  
+
   // Fallback to metadata counts
   if (data.metadata?.edgesByType?.[type]) {
     return data.metadata.edgesByType[type];
   }
-  
+
   if (data.metadata?.linksByType?.[type]) {
     return data.metadata.linksByType[type];
   }
-  
+
   return 0;
 };
 
 // Dynamic Relationship Types Filter Component
-const RelationshipTypesFilter = ({ 
-  relationshipTypes, 
+const RelationshipTypesFilter = ({
+  relationshipTypes,
   data,
   selectedRelationshipTypes,
-  onRelationshipTypeToggle 
-}: { 
-  relationshipTypes: string[], 
+  onRelationshipTypeToggle
+}: {
+  relationshipTypes: string[],
   data?: GraphData,
   selectedRelationshipTypes: Set<string>,
   onRelationshipTypeToggle: (type: string) => void
 }) => {
   if (relationshipTypes.length === 0) return null;
-  
+
   return (
     <div style={{ marginBottom: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -143,12 +140,12 @@ const RelationshipTypesFilter = ({
           {selectedRelationshipTypes.size} selected
         </div>
       </div>
-      
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '6px', 
-        maxHeight: '200px', 
+
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        maxHeight: '200px',
         overflowY: 'auto',
         padding: '8px',
         background: 'rgba(0,0,0,0.02)',
@@ -159,12 +156,12 @@ const RelationshipTypesFilter = ({
           const count = getRelationshipCount(type, data);
           const isSelected = selectedRelationshipTypes.has(type);
           const color = getDynamicColor(type, relationshipTypes);
-          
+
           return (
-            <label 
-              key={type} 
-              style={{ 
-                display: 'flex', 
+            <label
+              key={type}
+              style={{
+                display: 'flex',
                 alignItems: 'center',
                 padding: '8px 10px',
                 background: isSelected ? `${color}15` : 'white',
@@ -173,12 +170,11 @@ const RelationshipTypesFilter = ({
                 cursor: 'pointer',
                 transition: 'all 0.2s ease'
               }}
-              onClick={() => onRelationshipTypeToggle(type)}
             >
               <input
                 type="checkbox"
                 checked={isSelected}
-                onChange={() => {}}
+                onChange={() => onRelationshipTypeToggle(type)}
                 style={{ marginRight: '10px' }}
               />
               <span style={{
@@ -189,16 +185,16 @@ const RelationshipTypesFilter = ({
                 marginRight: '10px',
                 flexShrink: 0
               }} />
-              <span style={{ 
-                textTransform: 'capitalize', 
+              <span style={{
+                textTransform: 'capitalize',
                 fontSize: '13px',
                 flex: 1,
                 fontWeight: isSelected ? '600' : '400'
               }}>
                 {type?.replaceAll('_', ' ') || type}
               </span>
-              <span style={{ 
-                fontSize: '11px', 
+              <span style={{
+                fontSize: '11px',
                 color: '#64748b',
                 background: '#f8fafc',
                 padding: '2px 8px',
@@ -216,11 +212,18 @@ const RelationshipTypesFilter = ({
   );
 };
 
+const getConfidenceColor = (score?: number): string => {
+  if (score === undefined || score === null) return '#ef4444';
+  if (score > 0.7) return '#10b981';
+  if (score > 0.4) return '#f59e0b';
+  return '#ef4444';
+};
+
 // Custom node component with dynamic colors
 const CustomNode: React.FC<CustomNodeProps> = ({ data }) => {
   // Get color from node data or use default
   const nodeColor = data?.color || '#64748b';
-  
+
   return (
     <>
       <Handle type="target" position={Position.Top} />
@@ -254,8 +257,7 @@ const CustomNode: React.FC<CustomNodeProps> = ({ data }) => {
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            background: (data.metadata.analysis.confidence_score > 0.7 ? '#10b981' :
-              data.metadata.analysis.confidence_score > 0.4 ? '#f59e0b' : '#ef4444')
+            background: getConfidenceColor(data.metadata.analysis.confidence_score)
           }} />
         )}
       </div>
@@ -273,6 +275,37 @@ const nodeTypes = {
 const extractEntityTypes = (data?: GraphData): string[] => {
   if (!data?.metadata?.nodesByType) return [];
   return Object.keys(data.metadata.nodesByType);
+};
+
+const matchesSearchQuery = (node: GraphNode, query: string): boolean => {
+  return !!(
+    (node?.name || node?.id)?.toLowerCase().includes(query) ||
+    node?.metadata?.description?.toLowerCase().includes(query) ||
+    node?.type?.toLowerCase().includes(query) ||
+    node?.metadata?.source_name?.toLowerCase().includes(query)
+  );
+};
+
+const getAllConnectedIds = (links: GraphLink[]): Set<string> => {
+  const connectedNodeIds = new Set<string>();
+  for (const link of links) {
+    if (link?.source) connectedNodeIds.add(link.source);
+    if (link?.target) connectedNodeIds.add(link.target);
+  }
+  return connectedNodeIds;
+};
+
+const getFocusNodeConnectedIds = (links: GraphLink[], focusNodeId: string): Set<string> => {
+  const connectedNodeIds = new Set([focusNodeId]);
+  for (const link of links) {
+    if (link?.source === focusNodeId && link?.target) {
+      connectedNodeIds.add(link.target);
+    }
+    if (link?.target === focusNodeId && link?.source) {
+      connectedNodeIds.add(link.source);
+    }
+  }
+  return connectedNodeIds;
 };
 
 // Filter function that works with your JSON structure
@@ -308,24 +341,12 @@ export function getFilteredGraphData(
   // Filter by search query
   if (filters?.searchQuery && filters.searchQuery.trim() !== '') {
     const query = filters.searchQuery.toLowerCase();
-    filteredNodes = filteredNodes.filter(node =>
-      (node?.name || node?.id)?.toLowerCase().includes(query) ||
-      node?.metadata?.description?.toLowerCase().includes(query) ||
-      node?.type?.toLowerCase().includes(query) ||
-      node?.metadata?.source_name?.toLowerCase().includes(query)
-    );
+    filteredNodes = filteredNodes.filter(node => matchesSearchQuery(node, query));
   }
 
   // Filter out isolated nodes (nodes without links)
   if (filters?.hideIsolatedNodes) {
-    const connectedNodeIds = new Set<string>();
-
-    // Collect all node IDs that have connections
-    for (const link of filteredLinks) {
-      if (link?.source) connectedNodeIds.add(link.source);
-      if (link?.target) connectedNodeIds.add(link.target);
-    }
-
+    const connectedNodeIds = getAllConnectedIds(filteredLinks);
     filteredNodes = filteredNodes.filter(node =>
       node?.id && connectedNodeIds.has(node.id)
     );
@@ -333,17 +354,7 @@ export function getFilteredGraphData(
 
   // Focus on specific node (impact analysis)
   if (filters?.focusNodeId) {
-    const connectedNodeIds = new Set([filters.focusNodeId]);
-
-    // Get all directly connected nodes
-    for (const link of filteredLinks) {
-      if (link?.source === filters.focusNodeId && link?.target) {
-        connectedNodeIds.add(link.target);
-      }
-      if (link?.target === filters.focusNodeId && link?.source) {
-        connectedNodeIds.add(link.source);
-      }
-    }
+    const connectedNodeIds = getFocusNodeConnectedIds(filteredLinks, filters.focusNodeId);
 
     filteredNodes = filteredNodes.filter(node =>
       node?.id && connectedNodeIds.has(node.id)
@@ -370,10 +381,77 @@ export function getFilteredGraphData(
   };
 }
 
+const createAppNodes = (applicationGroups: Map<string, Set<string>>, filtered: GraphData): GraphNode[] => {
+  const appNodes: GraphNode[] = [];
+  for (const [appName, nodeIds] of applicationGroups.entries()) {
+    const appNodeIds = Array.from(nodeIds).filter(id =>
+      filtered?.nodes?.some(n => n?.id === id)
+    );
+
+    if (appNodeIds.length === 0) continue;
+
+    appNodes.push({
+      id: `app-${appName}`,
+      name: appName,
+      label: appName,
+      type: 'application',
+      metadata: {
+        description: `Application group containing ${appNodeIds.length} entities`,
+        source_name: appName
+      },
+      calls: [], calledBy: [], dependencies: [], summary: null, classifications: [],
+      complexityScore: 0, isEntryPoint: false, businessRules: [], integrations: [], dataEntities: []
+    });
+  }
+  return appNodes;
+};
+
+const getAppNamesForLink = (link: GraphLink, applicationGroups: Map<string, Set<string>>) => {
+  let sourceApp = '';
+  let targetApp = '';
+  for (const [appName, nodeIds] of applicationGroups.entries()) {
+    if (link?.source && nodeIds.has(link.source)) sourceApp = appName;
+    if (link?.target && nodeIds.has(link.target)) targetApp = appName;
+    if (sourceApp && targetApp) break;
+  }
+  return { sourceApp, targetApp };
+};
+
+const createAppLinks = (data: GraphData, applicationGroups: Map<string, Set<string>>, appNodes: GraphNode[]): GraphLink[] => {
+  const appLinks: GraphLink[] = [];
+  const appConnections = new Map<string, Set<string>>();
+  const createdApps = new Set(appNodes.map(n => n?.name).filter(Boolean));
+
+  if (!data?.links) return appLinks;
+
+  for (const link of data.links) {
+    const { sourceApp, targetApp } = getAppNamesForLink(link, applicationGroups);
+
+    if (sourceApp && targetApp && sourceApp !== targetApp &&
+      createdApps.has(sourceApp) && createdApps.has(targetApp)) {
+      const linkKey = `${sourceApp}-${targetApp}`;
+      if (!appConnections.has(linkKey)) {
+        appConnections.set(linkKey, new Set());
+        appLinks.push({
+          source: `app-${sourceApp}`,
+          target: `app-${targetApp}`,
+          type: 'integration',
+          weight: 0.8,
+          metadata: {
+            description: `Integration between ${sourceApp} and ${targetApp}`
+          }
+        });
+      }
+    }
+  }
+  return appLinks;
+};
+
 // Main visualization component
 function KnowledgeGraphVisualizationV2Content({
   data,
 }: Readonly<KnowledgeGraphVisualizationProps>) {
+  const { hasPermission } = usePermissions();
   const [graphData, setGraphData] = useState<GraphData>(data || {
     name: '',
     metadata: {},
@@ -396,9 +474,12 @@ function KnowledgeGraphVisualizationV2Content({
   });
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
+  const [maxNodeLimit, setMaxNodeLimit] = useState<number>(200);
+  const layoutCacheRef = useRef<Map<string, Map<string, { x: number; y: number }>>>(new Map());
+  const [entityTypes, setEntityTypes] = useState<string[]>([]);
   const [entityTypesWithColors, setEntityTypesWithColors] = useState<{ type: string; color: string }[]>([]);
-  const [selectedEntityTypes, setSelectedEntityTypes] = useState<Set<EntityType>>(new Set());
+  const [selectedEntityTypes, setSelectedEntityTypes] = useState<Set<string>>(new Set());
   const [relationshipTypes, setRelationshipTypes] = useState<string[]>([]);
   const [selectedRelationshipTypes, setSelectedRelationshipTypes] = useState<Set<string>>(new Set());
   const [layoutType, setLayoutType] = useState<'force' | 'dagre-lr' | 'dagre-tb'>('dagre-tb');
@@ -411,7 +492,6 @@ function KnowledgeGraphVisualizationV2Content({
   const [connectedNodes, setConnectedNodes] = useState<Set<string>>(new Set());
   const [connectedEdges, setConnectedEdges] = useState<Set<string>>(new Set());
   const [shouldFitView, setShouldFitView] = useState<boolean>(true);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -420,17 +500,25 @@ function KnowledgeGraphVisualizationV2Content({
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [, setReactFlowInstance] = useState<ReactFlowInstance<Node, Edge> | null>(null);
 
+  // Search input debouncing
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
   // Extract entity types and relationship types from data
   useEffect(() => {
     if (data) {
       const extractedEntityTypes = extractEntityTypes(data);
       const extractedEntityTypesWithColors = extractEntityTypesWithColors(data);
       const extractedRelationshipTypes = extractRelationshipTypes(data);
-      
+
       setEntityTypes(extractedEntityTypes);
       setEntityTypesWithColors(extractedEntityTypesWithColors);
       setRelationshipTypes(extractedRelationshipTypes);
-      
+
       // Initialize selected entity types with all available types
       setSelectedEntityTypes(new Set(extractedEntityTypes));
       setSelectedRelationshipTypes(new Set(extractedRelationshipTypes));
@@ -441,8 +529,8 @@ function KnowledgeGraphVisualizationV2Content({
   useEffect(() => {
     if (!data?.nodes) return;
 
-    const groups = new Map<string, Set<string>>();    
-      for (const node of data.nodes) {
+    const groups = new Map<string, Set<string>>();
+    for (const node of data.nodes) {
       const appName = node?.metadata?.source_name || 'Unknown';
       if (!groups.has(appName)) {
         groups.set(appName, new Set());
@@ -461,81 +549,58 @@ function KnowledgeGraphVisualizationV2Content({
     let filtered = getFilteredGraphData(data, {
       entityTypes: selectedEntityTypes,
       relationshipTypes: selectedRelationshipTypes,
-      searchQuery,
+      searchQuery: debouncedSearchQuery,
       hideIsolatedNodes,
     });
 
     // If in application view, group nodes
     if (viewLevel === 'application' && applicationGroups.size > 0) {
-      const appNodes: GraphNode[] = [];
-      const appLinks: GraphLink[] = [];
-      const appConnections = new Map<string, Set<string>>();
-
-      for (const [appName, nodeIds] of applicationGroups.entries()) {
-        const appNodeIds = Array.from(nodeIds).filter(id =>
-          filtered?.nodes?.some(n => n?.id === id)
-        );
-
-        if (appNodeIds.length === 0) continue;
-
-        appNodes.push({
-          id: `app-${appName}`,
-          name: appName,
-          label: appName,
-          type: 'application',
-          metadata: {
-            description: `Application group containing ${appNodeIds.length} entities`,
-            source_name: appName
-          },
-          calls: [],
-          calledBy: [],
-          dependencies: [],
-          summary: null,
-          classifications: [],
-          complexityScore: 0,
-          isEntryPoint: false,
-          businessRules: [],
-          integrations: [],
-          dataEntities: []
-        });
-      }
-
-      const createdApps = new Set(appNodes.map(n => n?.name).filter(Boolean));
-
-      if (data?.links) {
-        for (const link of data.links) {
-          let sourceApp = '';
-          let targetApp = '';
-
-          for (const [appName, nodeIds] of applicationGroups.entries()) {
-            if (link?.source && nodeIds.has(link.source)) sourceApp = appName;
-            if (link?.target && nodeIds.has(link.target)) targetApp = appName;
-          }
-
-          if (sourceApp && targetApp && sourceApp !== targetApp &&
-            createdApps.has(sourceApp) && createdApps.has(targetApp)) {
-            const linkKey = `${sourceApp}-${targetApp}`;
-            if (!appConnections.has(linkKey)) {
-              appConnections.set(linkKey, new Set());
-              appLinks.push({
-                source: `app-${sourceApp}`,
-                target: `app-${targetApp}`,
-                type: 'integration',
-                weight: 0.8,
-                metadata: {
-                  description: `Integration between ${sourceApp} and ${targetApp}`
-                }
-              });
-            }
-          }
-        }
-      }
-
+      const appNodes = createAppNodes(applicationGroups, filtered);
+      const appLinks = createAppLinks(data, applicationGroups, appNodes);
       filtered = { ...data, nodes: appNodes, links: appLinks };
     }
 
     setGraphData(filtered);
-  }, [selectedEntityTypes, selectedRelationshipTypes, searchQuery, data, viewLevel, applicationGroups, hideIsolatedNodes]);
+  }, [selectedEntityTypes, selectedRelationshipTypes, debouncedSearchQuery, data, viewLevel, applicationGroups, hideIsolatedNodes]);
+
+  // Apply intelligent node sampling & capping
+  const { sampledGraphData, isSampled } = useMemo(() => {
+    if (!graphData?.nodes || graphData.nodes.length === 0) {
+      return { sampledGraphData: graphData, isSampled: false, totalNodeCount: 0 };
+    }
+
+    const allNodes = graphData.nodes;
+    const allLinks = graphData.links || [];
+    const total = allNodes.length;
+
+    if (maxNodeLimit > 0 && total > maxNodeLimit) {
+      const degreeMap = new Map<string, number>();
+      for (const link of allLinks) {
+        if (link?.source) degreeMap.set(link.source, (degreeMap.get(link.source) || 0) + 1);
+        if (link?.target) degreeMap.set(link.target, (degreeMap.get(link.target) || 0) + 1);
+      }
+
+      const scoredNodes = [...allNodes].sort((a, b) => {
+        const degA = degreeMap.get(a.id) || 0;
+        const degB = degreeMap.get(b.id) || 0;
+        const scoreA = degA * 2 + (a.isEntryPoint ? 10 : 0);
+        const scoreB = degB * 2 + (b.isEntryPoint ? 10 : 0);
+        return scoreB - scoreA;
+      });
+
+      const selectedIds = new Set(scoredNodes.slice(0, maxNodeLimit).map((n) => n.id));
+      const sNodes = allNodes.filter((n) => selectedIds.has(n.id));
+      const sLinks = allLinks.filter((l) => l?.source && l?.target && selectedIds.has(l.source) && selectedIds.has(l.target));
+
+      return {
+        sampledGraphData: { ...graphData, nodes: sNodes, links: sLinks },
+        isSampled: true,
+        totalNodeCount: total,
+      };
+    }
+
+    return { sampledGraphData: graphData, isSampled: false, totalNodeCount: total };
+  }, [graphData, maxNodeLimit]);
 
   // Find all downstream nodes (forward direction only) via BFS traversal
   const findConnectedNodes = useCallback((nodeId: string, links: GraphLink[]): ConnectedNodesResult => {
@@ -570,19 +635,56 @@ function KnowledgeGraphVisualizationV2Content({
   // Update connected nodes when selection changes
   useEffect(() => {
     if (selectedNode?.id && highlightTraversal) {
-      const { connectedNodeIds, connectedEdgeIds } = findConnectedNodes(selectedNode.id, graphData?.links || []);
+      const { connectedNodeIds, connectedEdgeIds } = findConnectedNodes(selectedNode.id, sampledGraphData?.links || []);
       setConnectedNodes(connectedNodeIds);
       setConnectedEdges(connectedEdgeIds);
     } else {
       setConnectedNodes(new Set());
       setConnectedEdges(new Set());
     }
-  }, [selectedNode, graphData?.links, highlightTraversal, findConnectedNodes]);
+  }, [selectedNode, sampledGraphData?.links, highlightTraversal, findConnectedNodes]);
 
   // Apply layout algorithm
   const getLayoutedElements = useCallback((nodes: Node[], edges: Edge[], direction: string = 'TB'): LayoutedElements => {
+    if (nodes.length > 250) {
+      const nodesByType = new Map<string, Node[]>();
+      for (const node of nodes) {
+        const type = (node.data as CustomNodeData)?.type || 'default';
+        if (!nodesByType.has(type)) nodesByType.set(type, []);
+        nodesByType.get(type)!.push(node);
+      }
+
+      const layoutedNodes: Node[] = [];
+      const typeKeys = Array.from(nodesByType.keys());
+      const columns = Math.ceil(Math.sqrt(typeKeys.length));
+
+      typeKeys.forEach((type, groupIdx) => {
+        const groupNodes = nodesByType.get(type) || [];
+        const col = groupIdx % columns;
+        const row = Math.floor(groupIdx / columns);
+
+        const groupOriginX = col * 900;
+        const groupOriginY = row * 700;
+        const itemsPerRow = Math.ceil(Math.sqrt(groupNodes.length));
+
+        groupNodes.forEach((node, idx) => {
+          const itemCol = idx % itemsPerRow;
+          const itemRow = Math.floor(idx / itemsPerRow);
+
+          layoutedNodes.push({
+            ...node,
+            position: {
+              x: groupOriginX + itemCol * 240,
+              y: groupOriginY + itemRow * 110,
+            },
+          });
+        });
+      });
+
+      return { nodes: layoutedNodes, edges };
+    }
+
     if (layoutType === 'force') {
-      // For force layout, return nodes with random positions and let React Flow handle it
       return {
         nodes: nodes.map((node) => ({
           ...node,
@@ -595,7 +697,6 @@ function KnowledgeGraphVisualizationV2Content({
       };
     }
 
-    // Use dagre for hierarchical layouts
     const dagreGraph = new dagre.graphlib.Graph();
     dagreGraph.setDefaultEdgeLabel(() => ({}));
 
@@ -633,86 +734,167 @@ function KnowledgeGraphVisualizationV2Content({
     };
   }, [layoutType, viewLevel]);
 
-  // Convert graph data to React Flow format with dynamic colors
-  // Heavy dagre layout is deferred via setTimeout so the loading spinner
-  // can paint before the main thread is blocked.
+  // Compute graph layout (cached and decoupled from selection)
   useEffect(() => {
-    if (!graphData?.nodes?.length) {
-      setIsLoading(false);
+    if (!sampledGraphData?.nodes?.length) {
+      setNodes([]);
+      setEdges([]);
       return;
     }
 
-    setIsLoading(true);
+    const flowNodes: Node[] = sampledGraphData.nodes.map((node) => {
+      const entityType = entityTypesWithColors.find(et => et.type === node?.type);
+      const nodeColor = entityType?.color || '#64748b';
 
-    const timerId = setTimeout(() => {
-      const flowNodes: Node[] = graphData.nodes.map((node) => {
-        const isConnected = connectedNodes.has(node?.id || '');
-        const isHighlighted = selectedNode && highlightTraversal;
+      return {
+        id: node?.id || `node-${Math.random()}`,
+        type: 'custom',
+        data: {
+          ...node,
+          color: nodeColor
+        } as CustomNodeData,
+        position: { x: 0, y: 0 },
+        style: { opacity: 1 },
+      };
+    });
 
-        const entityType = entityTypesWithColors.find(et => et.type === node?.type);
-        const nodeColor = entityType?.color || '#64748b';
+    const nodeIdSet = new Set(sampledGraphData.nodes.map(n => n?.id).filter(Boolean));
+
+    const flowEdges: Edge[] = (sampledGraphData.links || [])
+      .filter((link) => {
+        return link?.source && link?.target &&
+          nodeIdSet.has(link.source) && nodeIdSet.has(link.target);
+      })
+      .map((link, index) => {
+        const edgeId = `${link.source}-${link.target}-${index}`;
+        const relationshipColor = getDynamicColor(link.type || 'default', relationshipTypes);
 
         return {
-          id: node?.id || `node-${Math.random()}`,
-          type: 'custom',
-          data: { ...node, color: nodeColor } as CustomNodeData,
-          position: { x: 0, y: 0 },
-          style: { opacity: isHighlighted && !isConnected ? 0.3 : 1 },
+          id: edgeId,
+          source: link.source,
+          target: link.target,
+          animated: false,
+          style: {
+            stroke: relationshipColor || '#94a3b8',
+            strokeWidth: 2.5,
+            opacity: 1,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#94a3b8',
+            width: 20,
+            height: 20,
+          },
+          label: link?.type || 'connection',
+          labelStyle: {
+            fill: '#1e293b',
+            fontSize: 11,
+            fontWeight: 500,
+          },
         };
       });
 
-      const nodeIdSet = new Set(graphData.nodes.map(n => n?.id).filter(Boolean));
+    // Layout Cache Check
+    const cacheKey = `${sampledGraphData.nodes.map((n) => n.id).join(',')}:${(sampledGraphData.links || []).map((l) => `${l.source}-${l.target}`).join(',')}:${layoutType}:${viewLevel}`;
+    const cachedPositions = layoutCacheRef.current.get(cacheKey);
 
-      const flowEdges: Edge[] = (graphData.links || [])
-        .filter(link => link?.source && link?.target && nodeIdSet.has(link.source) && nodeIdSet.has(link.target))
-        .map((link, index) => {
-          const edgeId = `${link.source}-${link.target}-${index}`;
-          const isConnected = connectedEdges.has(edgeId);
-          const isHighlighted = selectedNode && highlightTraversal;
-          const relationshipColor = getDynamicColor(link.type || 'default', relationshipTypes);
-          return {
-            id: edgeId,
-            source: link.source,
-            target: link.target,
-            animated: isConnected,
-            style: {
-              stroke: isConnected ? relationshipColor : '#94a3b8',
-              strokeWidth: isConnected ? 3 : 2.5,
-              opacity: isHighlighted && !isConnected ? 0.2 : 1,
-            },
-            markerEnd: { type: MarkerType.ArrowClosed, color: isConnected ? relationshipColor : '#94a3b8', width: 20, height: 20 },
-            label: link?.type || 'connection',
-            labelStyle: { fill: isConnected ? relationshipColor : '#1e293b', fontSize: 11, fontWeight: isConnected ? 600 : 500 },
-          };
-        });
-
-      const direction = layoutType === 'dagre-lr' ? 'LR' : 'TB';
-      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(flowNodes, flowEdges, direction);
-
+    if (cachedPositions) {
+      const layoutedNodes = flowNodes.map((n) => ({
+        ...n,
+        position: cachedPositions.get(n.id) || { x: 0, y: 0 },
+      }));
       setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
-      setIsLoading(false);
-    }, 0);
+      setEdges(flowEdges);
+      return;
+    }
 
-    return () => clearTimeout(timerId);
-  }, [graphData, layoutType, getLayoutedElements, setNodes, setEdges, selectedNode, connectedNodes, connectedEdges, highlightTraversal, relationshipTypes, entityTypesWithColors]);
+    const direction = layoutType === 'dagre-lr' ? 'LR' : 'TB';
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(flowNodes, flowEdges, direction);
+
+    const posMap = new Map<string, { x: number; y: number }>();
+    for (const n of layoutedNodes) {
+      posMap.set(n.id, n.position);
+    }
+    if (layoutCacheRef.current.size >= 5) {
+      const firstKey = layoutCacheRef.current.keys().next().value;
+      if (firstKey) layoutCacheRef.current.delete(firstKey);
+    }
+    layoutCacheRef.current.set(cacheKey, posMap);
+
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, [sampledGraphData, layoutType, viewLevel, getLayoutedElements, setNodes, setEdges, relationshipTypes, entityTypesWithColors]);
+
+  // Clean up cache on unmount
+  useEffect(() => {
+    return () => {
+      layoutCacheRef.current.clear();
+    };
+  }, []);
+
+  // Apply interaction highlight styles without re-calculating layout
+  useEffect(() => {
+    setNodes((prevNodes) =>
+      prevNodes.map((node) => {
+        const isConnected = connectedNodes.has(node.id);
+        const isHighlighted = selectedNode && highlightTraversal;
+        return {
+          ...node,
+          style: {
+            ...node.style,
+            opacity: isHighlighted && !isConnected ? 0.3 : 1,
+          },
+        };
+      })
+    );
+
+    setEdges((prevEdges) =>
+      prevEdges.map((edge) => {
+        const isConnected = connectedEdges.has(edge.id);
+        const isHighlighted = selectedNode && highlightTraversal;
+        const relationshipColor = getDynamicColor((edge.label as string) || 'default', relationshipTypes);
+
+        return {
+          ...edge,
+          animated: isConnected && prevEdges.length <= 100,
+          style: {
+            ...edge.style,
+            stroke: isConnected ? relationshipColor : '#94a3b8',
+            strokeWidth: isConnected ? 3 : 2.5,
+            opacity: isHighlighted && !isConnected ? 0.2 : 1,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: isConnected ? relationshipColor : '#94a3b8',
+            width: 20,
+            height: 20,
+          },
+          labelStyle: {
+            ...edge.labelStyle,
+            fill: isConnected ? relationshipColor : '#1e293b',
+            fontWeight: isConnected ? 600 : 500,
+          },
+        };
+      })
+    );
+  }, [selectedNode, connectedNodes, connectedEdges, highlightTraversal, relationshipTypes, setNodes, setEdges]);
 
   // Fit view when nodes or layout changes, but only when shouldFitView is true
   useEffect(() => {
     if (!shouldFitView) return;
-    
+
     setTimeout(() => {
       fitView({
         duration: 800,
         padding: 0.2
       });
     }, 100);
-    
+
     // Reset shouldFitView after fitting to prevent repeated auto-zoom
     setShouldFitView(false);
   }, [nodes, layoutType, viewLevel, fitView, shouldFitView]);
 
-  const toggleEntityType = (type: EntityType): void => {
+  const toggleEntityType = (type: string): void => {
     const newSet = new Set(selectedEntityTypes);
     if (newSet.has(type)) {
       newSet.delete(type);
@@ -794,29 +976,15 @@ function KnowledgeGraphVisualizationV2Content({
 
   if (!data) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', color: '#64748b', fontSize: '16px' }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '400px',
+        color: '#64748b',
+        fontSize: '16px'
+      }}>
         No graph data available
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: '20px' }}>
-        <div style={{
-          width: '56px', height: '56px',
-          border: '5px solid #f1f5f9',
-          borderTop: '5px solid #fb851e',
-          borderRadius: '50%',
-          animation: 'kg-spin 0.8s linear infinite'
-        }} />
-        <style>{`@keyframes kg-spin { to { transform: rotate(360deg); } }`}</style>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 6px 0' }}>Building Knowledge Graph…</p>
-          <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-            {graphData?.nodes?.length?.toLocaleString() || 0} nodes &amp; {graphData?.links?.length?.toLocaleString() || 0} edges
-          </p>
-        </div>
       </div>
     );
   }
@@ -894,7 +1062,7 @@ function KnowledgeGraphVisualizationV2Content({
               </div>
 
               {/* Export SVG Button */}
-              <button
+              {hasPermission('lifterinsights.filedownload') && <button
                 onClick={handleExportSvg}
                 disabled={nodes.length === 0}
                 style={{
@@ -932,7 +1100,7 @@ function KnowledgeGraphVisualizationV2Content({
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 Download SVG
-              </button>
+              </button>}
             </div>
 
             {/* Add a small info text below */}
@@ -954,7 +1122,7 @@ function KnowledgeGraphVisualizationV2Content({
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
                 Entity Types ({entityTypes.length})
               </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+              <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">
                 {entityTypesWithColors.map(({ type, color }) => (
                   <label key={type} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                     <input
@@ -977,12 +1145,46 @@ function KnowledgeGraphVisualizationV2Content({
             </div>
 
             {/* Relationship Types Filter */}
-            <RelationshipTypesFilter 
+            <RelationshipTypesFilter
               relationshipTypes={relationshipTypes}
               data={data}
               selectedRelationshipTypes={selectedRelationshipTypes}
               onRelationshipTypeToggle={toggleRelationshipType}
             />
+
+            {/* Max Node Limit */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label htmlFor="max-node-limit" style={{ fontSize: '14px', fontWeight: '500' }}>
+                  Max Node Limit
+                </label>
+                {isSampled && (
+                  <span style={{ fontSize: '11px', color: '#d97706', fontWeight: '600' }}></span>
+                )}
+              </div>
+              <select
+                id="max-node-limit"
+                value={maxNodeLimit}
+                onChange={(e) => setMaxNodeLimit(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: `1px solid #e2e8f0`,
+                  background: '#ffffff',
+                  color: '#1e293b',
+                  fontSize: '14px',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value={50}>50 Nodes (Fastest)</option>
+                <option value={100}>100 Nodes</option>
+                <option value={200}>200 Nodes (Recommended)</option>
+                <option value={500}>500 Nodes</option>
+                <option value={0}>All Nodes (May slow UI)</option>
+              </select>
+            </div>
 
             {/* View Level */}
             <div style={{ marginBottom: '20px' }}>
@@ -1152,6 +1354,7 @@ function KnowledgeGraphVisualizationV2Content({
         height: '85vh',
         minHeight: '600px'
       }} ref={reactFlowWrapper}>
+
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -1159,24 +1362,30 @@ function KnowledgeGraphVisualizationV2Content({
           onEdgesChange={onEdgesChange}
           onNodeClick={handleNodeClick}
           nodeTypes={nodeTypes}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={true}
           minZoom={0.1}
           maxZoom={2}
           onInit={setReactFlowInstance}
           defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
           attributionPosition="bottom-left"
+          onlyRenderVisibleElements
         >
           <Background />
           <Controls
             showInteractive={false}
             position="top-right"
           />
-          <MiniMap
-            nodeColor={(node) => getNodeColor(node.data?.type)}
-            nodeStrokeWidth={3}
-            zoomable
-            pannable
-            position="bottom-right"
-          />
+          {nodes.length <= 100 && (
+            <MiniMap
+              nodeColor={(node) => getNodeColor(node.data?.type)}
+              nodeStrokeWidth={3}
+              zoomable
+              pannable
+              position="bottom-right"
+            />
+          )}
         </ReactFlow>
       </div>
 
@@ -1274,7 +1483,7 @@ function KnowledgeGraphVisualizationV2Content({
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {selectedNode.metadata.analysis.classifications.map((classification: string, index: number) => (
                         <span
-                          key={index}
+                          key={`${index}+${classification}`}
                           style={{
                             padding: '2px 8px',
                             borderRadius: '4px',

@@ -6,13 +6,11 @@ import {
   NodeProps,
 } from 'reactflow';
 
-export type EntityType = string;
-export type RelationshipType = string;
-
 export type CloudReadinessLevel = 'high' | 'medium' | 'low' | 'not_assessed';
 export type RiskLevel = 'critical' | 'high' | 'medium' | 'low';
 export type Priority = 'high' | 'medium' | 'low';
 
+// Update NodeMetadata interface
 export interface NodeMetadata {
   filePath?: string;
   linesOfCode?: number;
@@ -22,18 +20,18 @@ export interface NodeMetadata {
   framework?: string;
   description?: string;
   cloudReadiness?: CloudReadinessLevel;
-  technicalDebt?: number;
-  securityScore?: number;
-  complexity?: number;
+  technicalDebt?: number; // 0-100 score
+  securityScore?: number; // 0-100 score
+  complexity?: number; // cyclomatic complexity
   riskLevel?: RiskLevel;
   migrationPriority?: Priority;
   businessImpact?: string;
-  tableCount?: number;
-  apiEndpoints?: number;
-  documentType?: string;
-  applicationName?: string;
-  applicationType?: string;
-  source_name?: string;
+  tableCount?: number; // for database nodes
+  apiEndpoints?: number; // for API nodes
+  documentType?: string; // for document nodes
+  applicationName?: string; // application/system name
+  applicationType?: string; // e.g., 'frontend', 'backend', 'api-gateway', 'database', 'documentation'
+  source_name?: string; // source of the data (e.g., 'GitHub', 'Jira', 'Confluence')
   analysis?: {
     confidence_score?: number;
     classifications?: string[];
@@ -43,47 +41,50 @@ export interface NodeMetadata {
   totalEdges?: number;
   totalLinks?: number;
   languages?: string[];
-  nodesByType?: { [key in EntityType]?: number };
+  nodesByType?: { [key in string]?: number };
   edgesByType?: { [key: string]: number };
   linksByType?: { [key: string]: number };
   filesAnalyzed?: number;
   analysisTime?: number;
 }
 
+// Update GraphNode interface
 export interface GraphNode {
   id: string;
   label?: string;
-  type: EntityType;
+  type: string;
   metadata: NodeMetadata;
-  group?: string;
-  importance?: number;
-  name?: string;
-  filePath?: string;
-  calls?: string[];
-  calledBy?: string[];
-  dependencies?: string[];
-  summary?: string | null;
-  classifications?: string[];
-  complexityScore?: number;
-  isEntryPoint?: boolean;
-  businessRules?: string[];
-  integrations?: string[];
-  dataEntities?: string[];
+  group?: string; // module/package grouping
+  importance?: number; // for node sizing (0-1)
+  name?: string; // display name
+  filePath?: string; // for display
+  calls?: string[]; // function calls
+  calledBy?: string[]; // called by these nodes
+  dependencies?: string[]; // dependency relationships
+  summary?: string | null; // node summary
+  classifications?: string[]; // classification tags
+  complexityScore?: number; // complexity metric
+  isEntryPoint?: boolean; // is this an entry point
+  businessRules?: string[]; // associated business rules
+  integrations?: string[]; // integration points
+  dataEntities?: string[]; // data entities used
 }
 
+// Update GraphLink interface
 export interface GraphLink {
   source: string;
   target: string;
-  type: RelationshipType;
-  strength?: number;
+  type: string;
+  strength?: number; // 0-1 for edge thickness
   bidirectional?: boolean;
   description?: string;
-  weight?: number;
+  weight?: number; // for layout algorithms
   metadata?: {
     description?: string;
   };
 }
 
+// Add GraphMetrics interface
 export interface GraphMetrics {
   totalNodes: number;
   totalEdges: number;
@@ -98,22 +99,23 @@ export interface GraphMetrics {
   mostCalling: string[];
 }
 
+// Update GraphData interface
 export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
-  name?: string;
+  name?: string; // graph name
   metadata: NodeMetadata;
-  entryPoints?: string[];
-  metrics?: GraphMetrics;
+  entryPoints?: string[]; // entry point node IDs
+  metrics?: GraphMetrics; // graph analysis metrics
 }
 
 export interface FilterState {
-  entityTypes: Set<EntityType>;
-  relationshipTypes: Set<RelationshipType>;
+  entityTypes: Set<string>;
+  relationshipTypes: Set<string>;
   searchQuery: string;
   cloudReadiness: Set<CloudReadinessLevel>;
   riskLevel: Set<RiskLevel>;
-  showOnlyConnectedTo?: string;
+  showOnlyConnectedTo?: string; // node id for impact analysis
 }
 
 export interface LayoutType {
@@ -130,6 +132,7 @@ export interface ClusterGroup {
   collapsed: boolean;
 }
 
+// Interface for Custom Node Data
 export interface CustomNodeData {
   id: string;
   name?: string;
@@ -146,23 +149,27 @@ export interface CustomNodeData {
   color?: string;
 }
 
+// Interface for Custom Node Props
 export interface CustomNodeProps extends NodeProps {
   data: CustomNodeData;
 }
 
+// Interface for Graph Filters
 export interface GraphFilters {
   entityTypes?: Set<string>;
   searchQuery?: string;
   focusNodeId?: string;
   hideIsolatedNodes?: boolean;
-  relationshipTypes?: Set<RelationshipType>;
+  relationshipTypes?: Set<string>;
 }
 
+// Interface for Connected Nodes Result
 export interface ConnectedNodesResult {
   connectedNodeIds: Set<string>;
   connectedEdgeIds: Set<string>;
 }
 
+// Interface for Layouted Elements
 export interface LayoutedElements {
   nodes: Node[];
   edges: Edge[];
