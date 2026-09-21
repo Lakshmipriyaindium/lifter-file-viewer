@@ -403,6 +403,615 @@ interface TotalAnalysisVisualizerProps {
   projectId?: string;
   artifactId?: string;
 }
+
+type LooseRecord = Record<string, unknown>;
+
+const toStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+};
+
+const asRecord = (value: unknown): LooseRecord => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as LooseRecord;
+  }
+  return {};
+};
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
+
+const decodeSerializedText = (value: string): string => value
+  .replace(/\\n/g, '\n')
+  .replace(/\\t/g, '\t')
+  .replace(/\\r/g, '\r')
+  .replace(/\\'/g, "'")
+  .replace(/\\"/g, '"')
+  .replace(/\\\\/g, '\\')
+  .trim();
+
+const findFieldValueStart = (serialized: string, key: string): number => {
+  const keyPattern = new RegExp(`(?:^|\\s)${escapeRegExp(key)}=`);
+  const match = keyPattern.exec(serialized);
+  if (!match) return -1;
+
+  const keyStart = match.index + (match[0].startsWith(' ') ? 1 : 0);
+  return keyStart + key.length + 1;
+};
+
+const readBalancedSegment = (
+  input: string,
+  startIndex: number,
+  openChar: string,
+  closeChar: string,
+): { inner: string; endIndex: number } | null => {
+  if (startIndex < 0 || input[startIndex] !== openChar) return null;
+
+  let depth = 0;
+  let quote: string | null = null;
+  let escaped = false;
+
+  for (let i = startIndex; i < input.length; i++) {
+    const ch = input[i];
+
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+
+    if (ch === openChar) {
+      depth++;
+      continue;
+    }
+
+    if (ch === closeChar) {
+      depth--;
+      if (depth === 0) {
+        return {
+          inner: input.slice(startIndex + 1, i),
+          endIndex: i,
+        };
+      }
+    }
+  }
+
+  return null;
+};
+
+const splitTopLevel = (input: string): string[] => {
+  const parts: string[] = [];
+  let token = '';
+  let quote: string | null = null;
+  let escaped = false;
+  let squareDepth = 0;
+  let parenDepth = 0;
+  let braceDepth = 0;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+
+    if (quote) {
+      token += ch;
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      token += ch;
+      continue;
+    }
+
+    if (ch === '[') squareDepth++;
+    if (ch === ']') squareDepth--;
+    if (ch === '(') parenDepth++;
+    if (ch === ')') parenDepth--;
+    if (ch === '{') braceDepth++;
+    if (ch === '}') braceDepth--;
+
+    if (ch === ',' && squareDepth === 0 && parenDepth === 0 && braceDepth === 0) {
+      const trimmed = token.trim();
+      if (trimmed.length > 0) parts.push(trimmed);
+      token = '';
+      continue;
+    }
+
+    token += ch;
+  }
+
+  const trimmed = token.trim();
+  if (trimmed.length > 0) parts.push(trimmed);
+
+  return parts;
+};
+
+const parseSerializedScalar = (rawValue: string): string | number | boolean | null => {
+  const value = rawValue.trim();
+  if (!value || value === 'None') return null;
+  if (value === 'True') return true;
+  if (value === 'False') return false;
+
+  if ((value.startsWith("'") && value.endsWith("'")) || (value.startsWith('"') && value.endsWith('"'))) {
+    return decodeSerializedText(value.slice(1, -1));
+  }
+
+  if (/^-?\d+(?:\.\d+)?$/.test(value)) {
+    const asNumber = Number(value);
+    if (Number.isFinite(asNumber)) return asNumber;
+  }
+
+  return decodeSerializedText(value);
+};
+
+const extractSerializedString = (serialized: string, key: string): string => {
+  const valueStart = findFieldValueStart(serialized, key);
+  if (valueStart < 0) return '';
+
+  const quote = serialized[valueStart];
+  if (quote !== '"' && quote !== "'") return '';
+
+  let escaped = false;
+  for (let i = valueStart + 1; i < serialized.length; i++) {
+    const ch = serialized[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch === quote) {
+      return decodeSerializedText(serialized.slice(valueStart + 1, i));
+    }
+  }
+
+  return '';
+};
+
+const extractSerializedNumber = (serialized: string, key: string): number | undefined => {
+  const valueStart = findFieldValueStart(serialized, key);
+  if (valueStart < 0) return undefined;
+
+  const value = serialized.slice(valueStart).match(/^-?\d+(?:\.\d+)?/);
+  if (!value) return undefined;
+  const parsed = Number(value[0]);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const extractSerializedBoolean = (serialized: string, key: string): boolean | undefined => {
+  const valueStart = findFieldValueStart(serialized, key);
+  if (valueStart < 0) return undefined;
+
+  const value = serialized.slice(valueStart);
+  if (value.startsWith('True')) return true;
+  if (value.startsWith('False')) return false;
+  return undefined;
+};
+
+const extractSerializedList = (serialized: string, key: string): string[] => {
+  const valueStart = findFieldValueStart(serialized, key);
+  if (valueStart < 0 || serialized[valueStart] !== '[') return [];
+
+  const segment = readBalancedSegment(serialized, valueStart, '[', ']');
+  if (!segment) return [];
+
+  const items = splitTopLevel(segment.inner)
+    .map((item) => parseSerializedScalar(item))
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return items;
+};
+
+const extractSerializedObjectList = (serialized: string, key: string, objectName: string): LooseRecord[] => {
+  const valueStart = findFieldValueStart(serialized, key);
+  if (valueStart < 0 || serialized[valueStart] !== '[') return [];
+
+  const segment = readBalancedSegment(serialized, valueStart, '[', ']');
+  if (!segment) return [];
+
+  const tokens = splitTopLevel(segment.inner);
+  const records: LooseRecord[] = [];
+
+  for (const token of tokens) {
+    const trimmed = token.trim();
+    if (!trimmed.startsWith(`${objectName}(`) || !trimmed.endsWith(')')) continue;
+
+    const body = trimmed.slice(objectName.length + 1, -1);
+    const fields = splitTopLevel(body);
+    const record: LooseRecord = {};
+
+    for (const field of fields) {
+      const eqIndex = field.indexOf('=');
+      if (eqIndex <= 0) continue;
+
+      const fieldKey = field.slice(0, eqIndex).trim();
+      const fieldValue = field.slice(eqIndex + 1).trim();
+      record[fieldKey] = parseSerializedScalar(fieldValue);
+    }
+
+    records.push(record);
+  }
+
+  return records;
+};
+
+const parseSerializedStory = (serialized: string): LooseRecord | null => {
+  const storyId = extractSerializedString(serialized, 'story_id');
+  if (!storyId) return null;
+
+  const citations = extractSerializedObjectList(serialized, 'citations', 'Citation').map((citation) => ({
+    source_type: String(citation.source_type ?? ''),
+    source_name: typeof citation.source_name === 'string' ? citation.source_name : null,
+    node_name: String(citation.node_name ?? ''),
+    file_path: String(citation.file_path ?? ''),
+    line_start: toNumber(citation.line_start, 0),
+    line_end: toNumber(citation.line_end, 0),
+    language: String(citation.language ?? ''),
+    entity_name: typeof citation.entity_name === 'string' ? citation.entity_name : null,
+    entity_type: typeof citation.entity_type === 'string' ? citation.entity_type : null,
+    schema_name: typeof citation.schema_name === 'string' ? citation.schema_name : null,
+    database: typeof citation.database === 'string' ? citation.database : null,
+    document_name: typeof citation.document_name === 'string' ? citation.document_name : null,
+    document_path: typeof citation.document_path === 'string' ? citation.document_path : null,
+    document_type: typeof citation.document_type === 'string' ? citation.document_type : null,
+  }));
+
+  const referenceDocuments = extractSerializedObjectList(serialized, 'reference_documents', 'ReferenceDocument').map((doc) => ({
+    document_id: (typeof doc.document_id === 'number' || typeof doc.document_id === 'string') ? doc.document_id : '',
+    confidence: toNumber(doc.confidence, 0),
+    relationship: typeof doc.relationship === 'string' ? doc.relationship : '',
+    reason: typeof doc.reason === 'string' ? doc.reason : '',
+  }));
+
+  return {
+    story_id: storyId,
+    title: extractSerializedString(serialized, 'title'),
+    epic: extractSerializedString(serialized, 'epic'),
+    as_a: extractSerializedString(serialized, 'as_a'),
+    i_want: extractSerializedString(serialized, 'i_want'),
+    so_that: extractSerializedString(serialized, 'so_that'),
+    narrative: extractSerializedString(serialized, 'narrative'),
+    background: extractSerializedString(serialized, 'background'),
+    acceptance_criteria: extractSerializedList(serialized, 'acceptance_criteria'),
+    assumptions: extractSerializedList(serialized, 'assumptions'),
+    test_scenarios: extractSerializedList(serialized, 'test_scenarios'),
+    technical_requirements: extractSerializedList(serialized, 'technical_requirements'),
+    data_inputs: extractSerializedList(serialized, 'data_inputs'),
+    data_outputs: extractSerializedList(serialized, 'data_outputs'),
+    related_features: extractSerializedList(serialized, 'related_features'),
+    related_business_rules: extractSerializedList(serialized, 'related_business_rules'),
+    related_flows: extractSerializedList(serialized, 'related_flows'),
+    depends_on: extractSerializedList(serialized, 'depends_on'),
+    blocks: extractSerializedList(serialized, 'blocks'),
+    tags: extractSerializedList(serialized, 'tags'),
+    affected_clients: extractSerializedList(serialized, 'affected_clients'),
+    client_specific_requirements: extractSerializedList(serialized, 'client_specific_requirements'),
+    priority: extractSerializedString(serialized, 'priority'),
+    complexity: extractSerializedString(serialized, 'complexity'),
+    status: extractSerializedString(serialized, 'status'),
+    customization_type: extractSerializedString(serialized, 'customization_type'),
+    story_points: extractSerializedNumber(serialized, 'story_points'),
+    has_client_customizations: extractSerializedBoolean(serialized, 'has_client_customizations'),
+    citations,
+    reference_documents: referenceDocuments,
+  };
+};
+
+const normalizeTotalAnalysisData = (rawData: TotalAnalysisData): TotalAnalysisData => {
+  const raw = asRecord(rawData);
+  const traceability = asRecord(raw.traceability);
+  const rawTraceabilityMap = asRecord(raw.traceability_map);
+  const nestedTraceabilityMap = asRecord(traceability.traceability_map);
+  const mergedTraceabilityMap = Object.keys(rawTraceabilityMap).length > 0 ? rawTraceabilityMap : nestedTraceabilityMap;
+
+  const rawFeatures = Array.isArray(raw.features)
+    ? (raw.features as unknown[])
+    : (Array.isArray(traceability.features) ? (traceability.features as unknown[]) : []);
+
+  const rawBusinessRules = Array.isArray(raw.business_rules)
+    ? (raw.business_rules as unknown[])
+    : (Array.isArray(traceability.business_rules) ? (traceability.business_rules as unknown[]) : []);
+
+  const rawFlows = Array.isArray(raw.flows) ? (raw.flows as unknown[]) : [];
+
+  const rawUserStories = Array.isArray(raw.user_stories) ? (raw.user_stories as unknown[]) : [];
+  const traceabilityStories = Array.isArray(traceability.user_stories)
+    ? (traceability.user_stories as unknown[])
+    : [];
+
+  const serializedStoriesById = new Map<string, LooseRecord>();
+  for (const story of rawUserStories) {
+    if (typeof story !== 'string') continue;
+    const parsed = parseSerializedStory(story);
+    if (parsed && typeof parsed.story_id === 'string' && parsed.story_id.length > 0) {
+      serializedStoriesById.set(parsed.story_id, parsed);
+    }
+  }
+
+  const usableStories = rawUserStories.some((story) => story && typeof story === 'object' && !Array.isArray(story))
+    ? rawUserStories
+    : traceabilityStories;
+
+  const features = rawFeatures.map((feature, idx) => {
+    const source = asRecord(feature);
+    const metadata = asRecord(source.metadata);
+    const featureId = String(source.feature_id ?? `feature_${idx + 1}`);
+    const name = String(source.name ?? source.title ?? featureId);
+    const description = String(source.description ?? '');
+
+    return {
+      ...source,
+      feature_id: featureId,
+      name,
+      title: String(source.title ?? name),
+      category: String(source.category ?? 'General'),
+      priority: String(source.priority ?? 'medium'),
+      complexity: String(source.complexity ?? 'medium'),
+      status: String(source.status ?? 'identified'),
+      description,
+      business_value: String(source.business_value ?? description),
+      user_roles: toStringArray(source.user_roles),
+      related_flows: toStringArray(source.related_flows).length > 0
+        ? toStringArray(source.related_flows)
+        : toStringArray(metadata.related_flow_ids),
+      related_nodes: toStringArray(source.related_nodes),
+      capabilities: toStringArray(source.capabilities),
+      user_actions: toStringArray(source.user_actions),
+      system_actions: toStringArray(source.system_actions),
+      validations: toStringArray(source.validations),
+      data_inputs: toStringArray(source.data_inputs),
+      data_outputs: toStringArray(source.data_outputs),
+      data_entities_used: toStringArray(source.data_entities_used),
+      technologies_used: toStringArray(source.technologies_used),
+      integration_points: toStringArray(source.integration_points),
+      business_rule_ids: toStringArray(source.business_rule_ids),
+      user_story_ids: toStringArray(source.user_story_ids),
+      client_specific_requirements: toStringArray(source.client_specific_requirements),
+      citations: Array.isArray(source.citations) ? source.citations : [],
+    };
+  }) as unknown as TotalAnalysisData['features'];
+
+  const businessRules = rawBusinessRules.map((rule, idx) => {
+    const source = asRecord(rule);
+    const ruleId = String(source.rule_id ?? `rule_${idx + 1}`);
+    const description = String(source.description ?? '');
+    const statement = String(source.statement ?? source.rule ?? description);
+
+    return {
+      ...source,
+      rule_id: ruleId,
+      name: String(source.name ?? (description || ruleId)),
+      category: String(source.category ?? 'General'),
+      priority: String(source.priority ?? 'medium'),
+      description,
+      statement,
+      conditions: toStringArray(source.conditions),
+      actions: toStringArray(source.actions),
+      data_elements: toStringArray(source.data_elements),
+      is_mandatory: Boolean(source.is_mandatory),
+      source_features: toStringArray(source.source_features),
+      source_flows: toStringArray(source.source_flows),
+      used_in_stories: toStringArray(source.used_in_stories),
+      citations: Array.isArray(source.citations) ? source.citations : [],
+    };
+  }) as unknown as TotalAnalysisData['business_rules'];
+
+  const storySourceById = new Map<string, LooseRecord>();
+  for (const story of usableStories) {
+    const source = asRecord(story);
+    const storyId = source.story_id;
+    if (typeof storyId === 'string' && storyId.trim().length > 0) {
+      const serialized = serializedStoriesById.get(storyId);
+      storySourceById.set(storyId, {
+        ...(serialized || {}),
+        ...source,
+      });
+    }
+  }
+
+  for (const [storyId, serialized] of serializedStoriesById) {
+    if (!storySourceById.has(storyId)) {
+      storySourceById.set(storyId, serialized);
+    }
+  }
+
+  // Add stories discovered only through features to preserve feature -> story linking.
+  for (const feature of features) {
+    for (const storyId of feature.user_story_ids || []) {
+      if (!storySourceById.has(storyId)) {
+        storySourceById.set(storyId, { story_id: storyId, title: storyId });
+      }
+    }
+  }
+
+  const userStories = Array.from(storySourceById.values()).map((story, idx) => {
+    const storyId = String(story.story_id ?? `story_${idx + 1}`);
+    const title = String(story.title ?? storyId);
+    const relatedFeatures = toStringArray(story.related_features);
+    const relatedBusinessRules = toStringArray(story.related_business_rules);
+
+    return {
+      ...story,
+      story_id: storyId,
+      title,
+      epic: String(story.epic ?? ''),
+      as_a: String(story.as_a ?? ''),
+      i_want: String(story.i_want ?? ''),
+      so_that: String(story.so_that ?? ''),
+      narrative: String(story.narrative ?? ''),
+      acceptance_criteria: toStringArray(story.acceptance_criteria),
+      assumptions: toStringArray(story.assumptions),
+      related_features: relatedFeatures,
+      related_business_rules: relatedBusinessRules,
+      related_flows: toStringArray(story.related_flows),
+      technical_requirements: toStringArray(story.technical_requirements),
+      data_inputs: toStringArray(story.data_inputs),
+      data_outputs: toStringArray(story.data_outputs),
+      test_scenarios: toStringArray(story.test_scenarios),
+      story_points: toNumber(story.story_points, 0),
+      complexity: String(story.complexity ?? 'medium'),
+      priority: String(story.priority ?? 'medium'),
+      depends_on: toStringArray(story.depends_on),
+      blocks: toStringArray(story.blocks),
+      status: String(story.status ?? 'draft'),
+      created_date: String(story.created_date ?? new Date(0).toISOString()),
+      tags: toStringArray(story.tags),
+      affected_clients: toStringArray(story.affected_clients),
+      client_specific_requirements: toStringArray(story.client_specific_requirements),
+      related_functionality: String(story.related_functionality ?? ''),
+      citations: Array.isArray(story.citations) ? story.citations : [],
+      reference_documents: Array.isArray(story.reference_documents) ? story.reference_documents : [],
+    };
+  }) as unknown as TotalAnalysisData['user_stories'];
+
+  const featuresToStories: Record<string, string[]> = {};
+  const storiesToFeatures: Record<string, string[]> = {};
+  const featuresToFlows: Record<string, string[]> = {};
+  const storiesToFlows: Record<string, string[]> = {};
+  const featuresToRules: Record<string, string[]> = {};
+  const rulesToFeatures: Record<string, string[]> = {};
+  const rulesToStories: Record<string, string[]> = {};
+
+  for (const feature of features) {
+    const featureId = feature.feature_id;
+    featuresToStories[featureId] = toStringArray(feature.user_story_ids);
+    featuresToFlows[featureId] = toStringArray(feature.related_flows);
+    featuresToRules[featureId] = toStringArray(feature.business_rule_ids);
+  }
+
+  for (const story of userStories) {
+    const storyId = story.story_id;
+    storiesToFeatures[storyId] = toStringArray(story.related_features).filter((id) => id.startsWith('feature_'));
+    const inferredFlows = storiesToFeatures[storyId]
+      .flatMap((featureId) => featuresToFlows[featureId] || []);
+    storiesToFlows[storyId] = Array.from(new Set(inferredFlows));
+  }
+
+  for (const rule of businessRules) {
+    const ruleId = rule.rule_id;
+    const mappedFeatures = toStringArray((rule as unknown as LooseRecord).source_features);
+    if (mappedFeatures.length > 0) {
+      rulesToFeatures[ruleId] = mappedFeatures;
+      for (const featureId of mappedFeatures) {
+        if (!featuresToRules[featureId]) featuresToRules[featureId] = [];
+        if (!featuresToRules[featureId].includes(ruleId)) {
+          featuresToRules[featureId].push(ruleId);
+        }
+      }
+    }
+  }
+
+  for (const story of userStories) {
+    rulesToStories[story.story_id] = toStringArray(story.related_business_rules);
+  }
+
+  const safeTraceabilityMap = {
+    flows_to_groups: asRecord(mergedTraceabilityMap.flows_to_groups) as Record<string, string>,
+    groups_to_features: asRecord(mergedTraceabilityMap.groups_to_features) as Record<string, string[]>,
+    features_to_flows: Object.keys(asRecord(mergedTraceabilityMap.features_to_flows)).length > 0
+      ? (asRecord(mergedTraceabilityMap.features_to_flows) as Record<string, string[]>)
+      : featuresToFlows,
+    features_to_stories: Object.keys(asRecord(mergedTraceabilityMap.features_to_stories)).length > 0
+      ? (asRecord(mergedTraceabilityMap.features_to_stories) as Record<string, string[]>)
+      : featuresToStories,
+    rules_to_features: Object.keys(asRecord(mergedTraceabilityMap.rules_to_features)).length > 0
+      ? (asRecord(mergedTraceabilityMap.rules_to_features) as Record<string, string[]>)
+      : rulesToFeatures,
+    stories_to_features: Object.keys(asRecord(mergedTraceabilityMap.stories_to_features)).length > 0
+      ? (asRecord(mergedTraceabilityMap.stories_to_features) as Record<string, string[]>)
+      : storiesToFeatures,
+    stories_to_flows: Object.keys(asRecord(mergedTraceabilityMap.stories_to_flows)).length > 0
+      ? (asRecord(mergedTraceabilityMap.stories_to_flows) as Record<string, string[]>)
+      : storiesToFlows,
+    rules_to_stories: Object.keys(asRecord(mergedTraceabilityMap.rules_to_stories)).length > 0
+      ? (asRecord(mergedTraceabilityMap.rules_to_stories) as Record<string, string[]>)
+      : rulesToStories,
+    features_to_rules: Object.keys(asRecord(mergedTraceabilityMap.features_to_rules)).length > 0
+      ? (asRecord(mergedTraceabilityMap.features_to_rules) as Record<string, string[]>)
+      : featuresToRules,
+  };
+
+  const flowGroups = asRecord(raw.flow_groups) as Record<string, unknown>;
+  const metrics = asRecord(raw.metrics);
+
+  return {
+    ...(rawData as unknown as LooseRecord),
+    codebase_path: String(raw.codebase_path ?? 'Unknown codebase'),
+    language: String(raw.language ?? 'unknown'),
+    timestamp: String(raw.timestamp ?? new Date(0).toISOString()),
+    flows: rawFlows as TotalAnalysisData['flows'],
+    features,
+    business_rules: businessRules,
+    user_stories: userStories,
+    flow_groups: flowGroups as unknown as TotalAnalysisData['flow_groups'],
+    traceability_map: safeTraceabilityMap,
+    metrics: {
+      ...metrics,
+      graph_metrics: asRecord(metrics.graph_metrics) as Record<string, number>,
+      flow_coverage: toNumber(metrics.flow_coverage, 0),
+      quality_scores: asRecord(metrics.quality_scores) as Record<string, number>,
+      pattern_count: toNumber(metrics.pattern_count, 0),
+      flow_count: toNumber(metrics.flow_count, rawFlows.length),
+      flow_group_count: toNumber(metrics.flow_group_count, Object.keys(flowGroups).length),
+      feature_count: toNumber(metrics.feature_count, features.length),
+      business_rule_count: toNumber(metrics.business_rule_count, businessRules.length),
+      story_count: toNumber(metrics.story_count, userStories.length),
+    },
+    client_customizations: {
+      enabled: Boolean(asRecord(raw.client_customizations).enabled),
+      total_nodes_with_customizations: toNumber(asRecord(raw.client_customizations).total_nodes_with_customizations, 0),
+      clients_affected: toStringArray(asRecord(raw.client_customizations).clients_affected),
+      flows_with_customizations: toNumber(asRecord(raw.client_customizations).flows_with_customizations, 0),
+      client_specific_business_rules: asRecord(asRecord(raw.client_customizations).client_specific_business_rules) as Record<string, number>,
+      total_client_specific_rules: toNumber(asRecord(raw.client_customizations).total_client_specific_rules, 0),
+      unknown_customizations: {
+        total_unknown: toNumber(asRecord(asRecord(raw.client_customizations).unknown_customizations).total_unknown, 0),
+        by_type: asRecord(asRecord(asRecord(raw.client_customizations).unknown_customizations).by_type) as Record<string, number>,
+        message: String(asRecord(asRecord(raw.client_customizations).unknown_customizations).message ?? ''),
+        review_location: String(asRecord(asRecord(raw.client_customizations).unknown_customizations).review_location ?? ''),
+      },
+    },
+  } as TotalAnalysisData;
+};
 // Helper Functions
 const getFeatureRelations = (featureId: string, data: TotalAnalysisData) => {
   const feature = data.features.find(f => f.feature_id === featureId);
@@ -514,7 +1123,9 @@ const FeatureDetails: React.FC<{ featureId: string, data: TotalAnalysisData }> =
   );
 }
 
-const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data, projectId, artifactId }) => {
+const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data: rawData, projectId, artifactId }) => {
+
+  const data = useMemo(() => normalizeTotalAnalysisData(rawData), [rawData]);
 
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
