@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component } from 'react';
 import { determineChartType } from '../lib/utils';
 import PlantUMLViewer from './plantuml/PlantUMLViewer';
 import MermaidViewer from './MermaidViewer';
@@ -23,6 +23,51 @@ import CodebaseAnalyzer from './project-analysis/CodebaseAnalyzer';
 import { ApiAnalysisVisualization } from './dotnet-api/DotNetAPIVisualizer';
 import ProgramFlowView from './program-flow/ProgramFlowView';
 import HierarchicalFeatureAnalysis from './feature-analysis/hierachy-feature';
+
+interface ChartEBProps {
+  onOpenInEditor: () => void;
+  children: React.ReactNode;
+}
+interface ChartEBState {
+  hasError: boolean;
+}
+
+class ChartErrorBoundary extends Component<ChartEBProps, ChartEBState> {
+  constructor(props: ChartEBProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ChartEBState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(_error: unknown, _info: unknown) {
+    // Gracefully catch any render crash from unmatched schemas
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8 text-center">
+          <div className="text-5xl mb-4">📄</div>
+          <h3 className="text-xl font-semibold mb-2">No Visualizer for this File Schema</h3>
+          <p className="mb-6 max-w-md">This file does not match the expected data format for chart rendering. You can view or edit the raw content in the Editor.</p>
+          <button 
+            onClick={() => {
+              this.setState({ hasError: false });
+              this.props.onOpenInEditor();
+            }}
+            className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-all"
+          >
+            Open in Editor
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Types for folder structure
 interface FileNode {
@@ -397,7 +442,9 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
               )}
               {activeTab === 'chart' && (
                 <div className="h-full w-full bg-white overflow-auto">
-                  {renderChart()}
+                  <ChartErrorBoundary onOpenInEditor={() => setActiveTab('editor')}>
+                    {renderChart()}
+                  </ChartErrorBoundary>
                 </div>
               )}
             </div>

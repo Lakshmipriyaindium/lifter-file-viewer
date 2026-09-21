@@ -43,13 +43,17 @@ const BusinessRulesVisualizer: React.FC<BusinessRulesVisualizerProps> = ({ data 
   const [showFilters, setShowFilters] = useState(true);
 
 
+  const businessRulesList = useMemo(() => {
+    return Array.isArray(data?.business_rules) ? data.business_rules : [];
+  }, [data]);
+
   // Extract unique values for filter dropdowns
   const uniqueValues = useMemo(() => {
     const categories = new Set<string>();
     const priorities = new Set<string>();
     const languages = new Set<string>();
 
-    for (const rule of data.business_rules) {
+    for (const rule of businessRulesList) {
       if (rule.category) categories.add(rule.category);
       if (rule.priority) priorities.add(rule.priority);
       if (rule.citations) {
@@ -64,11 +68,11 @@ const BusinessRulesVisualizer: React.FC<BusinessRulesVisualizerProps> = ({ data 
       priorities: Array.from(priorities).sort((a,b) => a.localeCompare(b)),
       languages: Array.from(languages).sort((a,b) => a.localeCompare(b))
     };
-  }, [data]);
+  }, [businessRulesList]);
 
   // Filtered and sorted data
   const processedData = useMemo(() => {
-    let filtered = [...data.business_rules];
+    let filtered = [...businessRulesList];
 
     // Apply filters
     if (filters.category !== 'all') {
