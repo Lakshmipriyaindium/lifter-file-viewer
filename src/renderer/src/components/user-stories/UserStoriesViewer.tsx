@@ -38,6 +38,15 @@ const UserStoriesViewer: React.FC<UserStoriesViewerProps> = ({ data }) => {
           for (const c of s.acceptance_criteria) md += `- ${c}\n`;
           md += '\n';
         }
+        if (s.citations && s.citations.length > 0) {
+          md += `**Source Citations (${s.citations.length}):**\n\n`;
+          md += `| Node Name | File Path | Lines | Language | Source |\n`;
+          md += `|-----------|-----------|-------|----------|--------|\n`;
+          for (const citation of s.citations) {
+            md += `| ${citation.node_name} | ${citation.file_path} | ${citation.line_start}-${citation.line_end} | ${citation.language} | ${citation.source_type} |\n`;
+          }
+          md += '\n';
+        }
         md += `---\n\n`;
       }
       const blob = new Blob([md], { type: 'text/markdown' });
@@ -66,6 +75,8 @@ const UserStoriesViewer: React.FC<UserStoriesViewerProps> = ({ data }) => {
         'Complexity': s.complexity,
         'Story Points': s.story_points,
         'Status': s.status,
+        'Citations Count': s.citations?.length || 0,
+        'Citations Summary': s.citations?.map(c => `${c.node_name} (${c.file_path}:${c.line_start}-${c.line_end})`).join('; ') || '',
         'Acceptance Criteria': (s.acceptance_criteria ?? []).join('; '),
         'Assumptions': (s.assumptions ?? []).join('; '),
         'Test Scenarios': (s.test_scenarios ?? []).join('; '),
@@ -75,6 +86,37 @@ const UserStoriesViewer: React.FC<UserStoriesViewerProps> = ({ data }) => {
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'User Stories');
+
+      // Add source citations sheet if any story has citations
+      const citationsData: unknown[] = [];
+      for (const story of stories) {
+        if (story.citations && story.citations.length > 0) {
+          for (const citation of story.citations) {
+            citationsData.push({
+              'Story ID': story.story_id,
+              'Story Title': story.title,
+              'Source Type': citation.source_type,
+              'Source Name': citation.source_name || '',
+              'Node Name': citation.node_name,
+              'File Path': citation.file_path,
+              'Line Start': citation.line_start,
+              'Line End': citation.line_end,
+              'Language': citation.language,
+              'Entity Name': citation.entity_name || '',
+              'Entity Type': citation.entity_type || '',
+              'Schema Name': citation.schema_name || '',
+              'Database': citation.database || '',
+              'Document Name': citation.document_name || '',
+              'Document Path': citation.document_path || ''
+            });
+          }
+        }
+      }
+      if (citationsData.length > 0) {
+        const citationsSheet = XLSX.utils.json_to_sheet(citationsData);
+        XLSX.utils.book_append_sheet(wb, citationsSheet, 'Source Citations');
+      }
+
       XLSX.writeFile(wb, `user_stories_${Date.now()}.xlsx`);
     } finally {
       setIsExporting(false);

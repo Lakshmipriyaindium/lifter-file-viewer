@@ -657,19 +657,19 @@ export const getOperationColor = (operation: string): string => {
 
 export interface Citation {
   source_type: string;
-  source_name: string;
+  source_name?: string;
   node_name: string;
   file_path: string;
-  line_start: number;
-  line_end: number;
+  line_start: number | string;
+  line_end: number | string;
   language: string;
   entity_name: string | null;
   entity_type: string | null;
-  schema_name: string | null;
-  database: string | null;
-  document_name: string | null;
-  document_path: string | null;
-  document_type: string | null;
+  schema_name?: string | null;
+  database?: string | null;
+  document_name?: string | null;
+  document_path?: string | null;
+  document_type?: string | null;
 }
 
 // Database operation types

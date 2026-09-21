@@ -1,6 +1,7 @@
-// Adapted for Lifter-File-Viewer
 import React, { useState, useMemo } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, FileCode } from 'lucide-react';
+import { Citation } from './type';
+import { StoryCitationsTab } from './userstory';
 
 interface UserStory {
   story_id: string;
@@ -35,14 +36,7 @@ interface UserStory {
   }>;
   depends_on: string[];
   blocks: string[];
-  citations?: Array<{
-    source_type: string;
-    node_name: string;
-    file_path: string;
-    line_start: number;
-    line_end: number;
-    language: string;
-  }>;
+  citations?: Citation[];
 }
 
 interface BusinessRule {
@@ -421,44 +415,13 @@ const UserStoriesView: React.FC<UserStoriesViewProps> = ({
     )
   }
   const renderCitationsTab = () => {
-    return(
-      <div>
-        <h4 className="font-semibold text-gray-800 mb-4">📎 Source Citations</h4>
-        {selectedStory.citations && selectedStory.citations.length > 0 ? (
-          <div className="space-y-3">
-            {selectedStory.citations.map((citation) => (
-              <div key={`${selectedStory.story_id}-citation-${citation.node_name}-${citation.file_path}-${citation.line_start}`} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="font-medium text-gray-700">Source Type:</span>
-                    <span className="ml-2 text-gray-600">{citation.source_type}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700">Language:</span>
-                    <span className="ml-2 text-gray-600">{citation.language}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="font-medium text-gray-700">Node Name:</span>
-                    <span className="ml-2 text-gray-600 font-mono">{citation.node_name}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="font-medium text-gray-700">File Path:</span>
-                    <span className="ml-2 text-gray-600 font-mono text-xs">{citation.file_path}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700">Lines:</span>
-                    <span className="ml-2 text-gray-600">{citation.line_start} - {citation.line_end}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 text-center py-8">No source citations available for this story.</p>
-        )}
-      </div>
-    )
-  }
+    return (
+      <StoryCitationsTab
+        storyId={selectedStory.story_id}
+        citations={selectedStory.citations}
+      />
+    );
+  };
   const renderTestsTab = () => {
     return(
     <div>
@@ -786,7 +749,13 @@ const UserStoriesView: React.FC<UserStoriesViewProps> = ({
                     <p className="text-sm text-gray-500">{selectedStory.epic}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center flex-wrap">
+                  {selectedStory.citations && selectedStory.citations.length > 0 && (
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                      <FileCode className="w-3.5 h-3.5" />
+                      {selectedStory.citations.length} Citations
+                    </span>
+                  )}
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getPriorityColor(selectedStory.priority)}`}>
                     {selectedStory.priority}
                   </span>

@@ -939,6 +939,15 @@ const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data,
     markdown += generateRelatedBusinessRules(story, businessRules);
     markdown += generateReferenceDocuments(story.reference_documents);
     markdown += generateDependencies(story.depends_on, story.blocks);
+    if (story.citations && story.citations.length > 0) {
+      markdown += `**Source Citations (${story.citations.length}):**\n\n`;
+      markdown += `| Node Name | File Path | Lines | Language | Source |\n`;
+      markdown += `|-----------|-----------|-------|----------|--------|\n`;
+      for (const citation of story.citations) {
+        markdown += `| ${citation.node_name} | ${citation.file_path} | ${citation.line_start}-${citation.line_end} | ${citation.language} | ${citation.source_type} |\n`;
+      }
+      markdown += `\n`;
+    }
     markdown += `---\n\n`;
     return markdown;
   };
@@ -1013,6 +1022,8 @@ const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data,
         'Affected Clients': story.affected_clients?.join(', ') || '',
         'Customization Type': story.customization_type || '',
         'Implementation Notes': story.implementation_notes || '',
+        'Citations Count': story.citations?.length || 0,
+        'Citations Summary': story.citations?.map(c => `${c.node_name} (${c.file_path}:${c.line_start}-${c.line_end})`).join('; ') || '',
         'Depends On': story.depends_on.join(', '),
         'Blocks': story.blocks.join(', '),
       }));

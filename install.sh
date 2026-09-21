@@ -268,7 +268,7 @@ fi
 step "Locating project source"
 
 # ── Resolve the directory that contains this script ──────────
-if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" != "bash" ]; then
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" != "bash" ] && [[ "${BASH_SOURCE[0]}" != /dev/fd/* ]] && [[ "${BASH_SOURCE[0]}" != /proc/* ]]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 else
     SCRIPT_DIR="$(pwd)"   # curl | bash fallback
@@ -281,27 +281,58 @@ if [ -f "$SCRIPT_DIR/package.json" ]; then
     success "Project source found alongside this script: $PROJECT_DIR"
     success "No git clone needed — using bundled source."
 
-# ── Priority 2: source in a sub-folder next to install.sh ────
-#    (e.g. install.sh is one level above Lifter-File-Viewer/)
+# ── Priority 2: already cloned (delete and reclone) ──────────
+#    If the git repository was cloned previously, delete and reclone it fresh
+elif [ -d "$SCRIPT_DIR/$REPO_DIR_NAME/.git" ] || [ -d "$SCRIPT_DIR/lifter-file-viewer/.git" ]; then
+    TARGET_CLONE_DIR="$SCRIPT_DIR/$REPO_DIR_NAME"
+    [ -d "$SCRIPT_DIR/lifter-file-viewer/.git" ] && TARGET_CLONE_DIR="$SCRIPT_DIR/lifter-file-viewer"
+    PROJECT_DIR="$SCRIPT_DIR/$REPO_DIR_NAME"
+
+    info "Repository already cloned at: $TARGET_CLONE_DIR"
+    info "Deleting existing repository and recloning …"
+    rm -rf "$TARGET_CLONE_DIR"
+    if [ "$TARGET_CLONE_DIR" != "$PROJECT_DIR" ] && [ -d "$PROJECT_DIR" ]; then
+        rm -rf "$PROJECT_DIR"
+    fi
+
+    info "Attempting git clone …"
+    if git clone "$REPO_URL" "$PROJECT_DIR"; then
+        success "Repository recloned successfully."
+    else
+        echo ""
+        echo -e "${RED}${BOLD}✖  Could not clone the repository.${NC}" >&2
+        echo -e "${YELLOW}   This usually means you do not have access to the private GitHub repo." >&2
+        echo "" >&2
+        echo -e "   Please ask the project team to share the project as a ZIP file." >&2
+        echo -e "   Then extract it so your folder looks like this:" >&2
+        echo "" >&2
+        echo -e "     📁 Lifter-File-Viewer-setup/"  >&2
+        echo -e "       ├── install.sh          ← this script" >&2
+        echo -e "       ├── package.json" >&2
+        echo -e "       ├── src/" >&2
+        echo -e "       └── ... (other project files)" >&2
+        echo "" >&2
+        echo -e "   Then run:  bash install.sh" >&2
+        echo -e "${NC}" >&2
+        exit 1
+    fi
+
+# ── Priority 3: source in a sub-folder next to install.sh ────
+#    (e.g. install.sh is one level above Lifter-File-Viewer/ without git)
 elif [ -f "$SCRIPT_DIR/$REPO_DIR_NAME/package.json" ]; then
     PROJECT_DIR="$SCRIPT_DIR/$REPO_DIR_NAME"
     success "Project source found at: $PROJECT_DIR"
     success "No git clone needed — using bundled source."
 
-# ── Priority 3: already cloned (running install.sh again) ────
-elif [ -d "$SCRIPT_DIR/$REPO_DIR_NAME/.git" ]; then
-    PROJECT_DIR="$SCRIPT_DIR/$REPO_DIR_NAME"
-    info "Repository already cloned at: $PROJECT_DIR"
-    info "Pulling latest changes …"
-    git -C "$PROJECT_DIR" pull --ff-only \
-        || warn "Could not pull latest changes (local modifications exist). Continuing."
-    success "Repository is up to date."
-
 # ── Priority 4: try git clone (public repo or user has access) ─
 else
     PROJECT_DIR="$SCRIPT_DIR/$REPO_DIR_NAME"
     info "Project source not found locally. Attempting git clone …"
-    if git clone "$REPO_URL" "$PROJECT_DIR" 2>/dev/null; then
+    if [ -d "$PROJECT_DIR" ]; then
+        warn "Directory $PROJECT_DIR already exists. Removing it before cloning …"
+        rm -rf "$PROJECT_DIR"
+    fi
+    if git clone "$REPO_URL" "$PROJECT_DIR"; then
         success "Repository cloned successfully."
     else
         echo ""

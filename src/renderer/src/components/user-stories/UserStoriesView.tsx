@@ -3,9 +3,10 @@ import {
   Users, Search, Settings, Filter, Download, FileDown,
   ChevronDown, ChevronRight, Calendar, Clock, Star, Tag,
   CheckCircle, AlertCircle, Circle, User, Target, Lightbulb,
-  Code, TestTube, FileText, ArrowRight, BarChart3, Flag, Eye, Edit
+  Code, TestTube, FileText, ArrowRight, BarChart3, Flag, Eye, Edit, FileCode
 } from 'lucide-react';
 import { UserStoriesViewProps } from './type';
+import { StoryCitationsTab } from '../feature-analysis/userstory';
 
 interface Filters {
   status: string[];
@@ -42,6 +43,10 @@ const UserStoriesView: React.FC<UserStoriesViewProps> = ({
   // Derived data
   const epics = useMemo(() => [...new Set((stories || []).map(s => s.epic).filter(Boolean))], [stories]);
   const allTags = useMemo(() => [...new Set((stories || []).flatMap(s => s.tags || []))], [stories]);
+  const totalCitations = useMemo(
+    () => (stories || []).reduce((acc, s) => acc + (s.citations?.length || 0), 0),
+    [stories]
+  );
 
   const statusCounts = useMemo(() => {
     const counts = { draft: 0, ready: 0, 'in-progress': 0, done: 0, blocked: 0 };
@@ -207,6 +212,12 @@ const UserStoriesView: React.FC<UserStoriesViewProps> = ({
                   <Flag className="w-4 h-4" />
                   {epics.length} Epics
                 </span>
+                {totalCitations > 0 && (
+                  <span className="flex items-center gap-1 text-indigo-600 font-medium">
+                    <FileCode className="w-4 h-4" />
+                    {totalCitations} Citations
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex gap-3">
@@ -436,6 +447,14 @@ const UserStoriesView: React.FC<UserStoriesViewProps> = ({
                         <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getComplexityColor(story.complexity)}`}>
                           {story.complexity}
                         </div>
+                        {story.citations && story.citations.length > 0 && (
+                          <div className="px-3 py-1 rounded-full text-xs font-medium border bg-indigo-50 text-indigo-700 border-indigo-200">
+                            <div className="flex items-center gap-1">
+                              <FileCode className="w-3 h-3" />
+                              {story.citations.length} Citations
+                            </div>
+                          </div>
+                        )}
                         {story.has_client_customizations && (
                           <div className="px-3 py-1 rounded-full text-xs font-medium border bg-orange-100 text-orange-800 border-orange-200">
                             <div className="flex items-center gap-1">
@@ -486,11 +505,12 @@ const UserStoriesView: React.FC<UserStoriesViewProps> = ({
                   {isExpanded && (
                     <div>
                       {/* Tab Navigation */}
-                      <div className="flex border-b bg-gray-50">
+                      <div className="flex border-b bg-gray-50 flex-wrap">
                         {[
                           { id: 'overview', label: 'Overview', icon: Eye },
                           { id: 'criteria', label: 'Acceptance Criteria', icon: CheckCircle },
                           { id: 'technical', label: 'Technical', icon: Code },
+                          { id: 'citations', label: 'Citations', icon: FileCode },
                           { id: 'testing', label: 'Testing', icon: TestTube },
                           { id: 'relationships', label: 'Relationships', icon: ArrowRight },
                           ...(story.has_client_customizations ? [{ id: 'customizations', label: 'Client Customizations', icon: Settings }] : []),
@@ -505,6 +525,20 @@ const UserStoriesView: React.FC<UserStoriesViewProps> = ({
                           >
                             <tab.icon className="w-4 h-4" />
                             {tab.label}
+                            {tab.id === 'citations' && (
+                              <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                (story.citations?.length || 0) > 0
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-gray-100 text-gray-500'
+                              }`}>
+                                {story.citations?.length || 0}
+                              </span>
+                            )}
+                            {tab.id === 'customizations' && (
+                              <span className="ml-1 px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full text-xs">
+                                {story.affected_clients?.length || 0}
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -649,6 +683,13 @@ const UserStoriesView: React.FC<UserStoriesViewProps> = ({
                               </div>
                             </div>
                           </div>
+                        )}
+
+                        {activeStoryTab === 'citations' && (
+                          <StoryCitationsTab
+                            storyId={story.story_id}
+                            citations={story.citations}
+                          />
                         )}
 
                         {activeStoryTab === 'testing' && (

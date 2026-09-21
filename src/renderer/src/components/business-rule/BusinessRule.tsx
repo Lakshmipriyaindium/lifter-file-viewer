@@ -50,11 +50,11 @@ const BusinessRulesVisualizer: React.FC<BusinessRulesVisualizerProps> = ({ data 
     const languages = new Set<string>();
 
     for (const rule of data.business_rules) {
-      categories.add(rule.category);
-      priorities.add(rule.priority);
+      if (rule.category) categories.add(rule.category);
+      if (rule.priority) priorities.add(rule.priority);
       if (rule.citations) {
         for (const citation of rule.citations) {
-          languages.add(citation.language);
+          if (citation.language) languages.add(citation.language);
         }
       }
     }
