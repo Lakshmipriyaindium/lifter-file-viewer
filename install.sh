@@ -669,6 +669,7 @@ fi
 step "Building the application"
 
 info "Running: npm run dist (this may take a few minutes) …"
+export NODE_TLS_REJECT_UNAUTHORIZED=0
 npm run dist || error "Build failed. Check the output above for details."
 
 success "Application built successfully."

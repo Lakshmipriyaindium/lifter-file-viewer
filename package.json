@@ -59,7 +59,7 @@
   },
   "build": {
     "appId": "com.lifter.viewer",
-    "productName": "Lifter-File-Viewer",
+    "productName": "The lifter",
     "directories": {
       "output": "dist_electron"
     },
@@ -87,7 +87,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "Lifter-File-Viewer"
+      "shortcutName": "The lifter"
     }
   }
 }
