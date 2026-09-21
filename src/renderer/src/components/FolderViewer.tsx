@@ -215,18 +215,47 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
     setTree(prevTree => updateTree(prevTree));
   };
 
+  const [isTruncated, setIsTruncated] = useState<boolean>(false);
+  const [fileSizeStr, setFileSizeStr] = useState<string>('');
+
   const handleFileClick = (file: FileNode) => {
     if (file.isDirectory) {
       toggleFolder(file.path);
     } else {
       setSelectedFile(file);
+      setIsTruncated(false);
+      setFileSizeStr('');
       if (fs) {
-        const content = fs.readFileSync(file.path, 'utf-8');
-        setFileContent(content);
-        // Automatically switch to Chart tab if it's a known chart type
-        if (determineChartType(file.name, content)) {
-          setActiveTab('chart');
-        } else {
+        try {
+          const stats = fs.statSync(file.path);
+          const sizeMB = (stats.size / (1024 * 1024)).toFixed(1);
+          setFileSizeStr(`${sizeMB} MB`);
+
+          // If file is larger than 10MB, truncate for the editor/chart to avoid freezing the renderer
+          const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+          if (stats.size > MAX_SIZE) {
+            setIsTruncated(true);
+            const buffer = Buffer.alloc(MAX_SIZE);
+            const fd = fs.openSync(file.path, 'r');
+            fs.readSync(fd, buffer, 0, MAX_SIZE, 0);
+            fs.closeSync(fd);
+            const content = buffer.toString('utf-8');
+            setFileContent(content);
+            setActiveTab('editor');
+            return;
+          }
+
+          const content = fs.readFileSync(file.path, 'utf-8');
+          setFileContent(content);
+          // Automatically switch to Chart tab if it's a known chart type
+          if (determineChartType(file.name, content)) {
+            setActiveTab('chart');
+          } else {
+            setActiveTab('editor');
+          }
+        } catch (err: any) {
+          console.error('Error reading file:', err);
+          setFileContent(`Error loading file: ${err.message || err}`);
           setActiveTab('editor');
         }
       }
@@ -432,11 +461,18 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
           {selectedFile ? (
             <div className="h-full w-full">
               {activeTab === 'editor' && (
-                <div className="h-full w-full">
+                <div className="h-full w-full flex flex-col">
+                  {isTruncated && (
+                    <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 text-xs text-amber-800 flex items-center justify-between">
+                      <span>
+                        ⚠️ <strong>Large File ({fileSizeStr}):</strong> Showing first 10MB to maintain smooth editor performance.
+                      </span>
+                    </div>
+                  )}
                   <textarea 
                     value={fileContent}
                     readOnly
-                    className="w-full h-full p-6 text-sm font-mono bg-white border-none focus:outline-none resize-none"
+                    className="w-full flex-grow p-6 text-sm font-mono bg-white border-none focus:outline-none resize-none"
                   />
                 </div>
               )}
