@@ -247,32 +247,20 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       setFileSizeStr('');
       if (fs) {
         try {
-          const stats = fs.statSync(file.path);
-          const sizeMBVal = stats.size / (1024 * 1024);
-          const sizeMB = sizeMBVal.toFixed(1);
-          setFileSizeStr(`${sizeMB} MB`);
-
-          // Special check: If file is analysis_state.json or very large (>= 15MB)
+          // Special check: Only for analysis_state files that are >= 15MB
           const isAnalysisState = file.name.toLowerCase().includes('analysis_state');
-          if (isAnalysisState || sizeMBVal >= 15) {
-            setIsTooLarge(true);
-            setFileContent('');
-            setActiveTab('editor');
-            return;
-          }
+          if (isAnalysisState) {
+            const stats = fs.statSync(file.path);
+            const sizeMBVal = stats.size / (1024 * 1024);
+            const sizeMB = sizeMBVal.toFixed(1);
+            setFileSizeStr(`${sizeMB} MB`);
 
-          // If file is between 5MB and 15MB, load preview chunk
-          const PREVIEW_LIMIT = 2 * 1024 * 1024; // 2MB preview
-          if (stats.size > PREVIEW_LIMIT) {
-            setIsTruncated(true);
-            const buffer = Buffer.alloc(PREVIEW_LIMIT);
-            const fd = fs.openSync(file.path, 'r');
-            fs.readSync(fd, buffer, 0, PREVIEW_LIMIT, 0);
-            fs.closeSync(fd);
-            const content = buffer.toString('utf-8');
-            setFileContent(content);
-            setActiveTab('editor');
-            return;
+            if (sizeMBVal >= 15) {
+              setIsTooLarge(true);
+              setFileContent('');
+              setActiveTab('editor');
+              return;
+            }
           }
 
           const content = fs.readFileSync(file.path, 'utf-8');
@@ -496,13 +484,13 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
                     <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center bg-white">
                       <div className="text-6xl mb-4">📦</div>
                       <h3 className="text-xl font-bold text-gray-800 mb-2">
-                        Very Large File ({fileSizeStr || 'Huge'})
+                        Large Analysis State File ({fileSizeStr || 'Huge'})
                       </h3>
                       <p className="text-sm text-gray-500 max-w-md mb-2">
-                        <strong className="text-gray-700">{selectedFile.name}</strong> is very large ({fileSizeStr}).
+                        <strong className="text-gray-700">{selectedFile.name}</strong> is an internal analysis state file ({fileSizeStr}).
                       </p>
                       <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-lg max-w-lg mb-6 leading-relaxed">
-                        ⚠️ Rendering huge files (like internal engine state dumps or graph matrices) in the editor will cause high memory usage and can freeze or crash the window.
+                        ⚠️ Rendering huge analysis state files in the editor causes excessive memory usage and can freeze or crash the window.
                       </p>
                       <div className="flex gap-3">
                         <button
