@@ -100,6 +100,14 @@ export const determineChartType = (fileName: string, content: string): string | 
     if (lowerName.includes("module_analysis")) return "module_analysis";
     if (lowerName.includes("api-report")) return "API-report";
     if (lowerName.includes("program_flow")) return "program_flow";
+    if (lowerName.includes("capability") || lowerName.includes("taxonomy") || lowerName.includes("l1_l2_l3")) return "capability_model";
+
+    try {
+      const data = JSON.parse(content);
+      if (Array.isArray(data) && data.length > 0 && data[0].l2Capabilities) {
+        return "capability_model";
+      }
+    } catch (e) {}
   }
 
   return null;
