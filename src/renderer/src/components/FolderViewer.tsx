@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component } from 'react';
+import React, { useState, useEffect, Component, useRef } from 'react';
 import { determineChartType } from '../lib/utils';
 import PlantUMLViewer from './plantuml/PlantUMLViewer';
 import MermaidViewer from './MermaidViewer';
@@ -23,6 +23,7 @@ import CodebaseAnalyzer from './project-analysis/CodebaseAnalyzer';
 import { ApiAnalysisVisualization } from './dotnet-api/DotNetAPIVisualizer';
 import ProgramFlowView from './program-flow/ProgramFlowView';
 import HierarchicalFeatureAnalysis from './feature-analysis/hierachy-feature';
+import CapabilityModelViewer from './feature-analysis/CapabilityModelViewer';
 
 interface ChartEBProps {
   onOpenInEditor: () => void;
@@ -75,12 +76,9 @@ interface FileNode {
   path: string;
   isDirectory: boolean;
   children?: FileNode[];
+  file?: File;
+  size?: number;
 }
-
-const electron = (window as any).require ? (window as any).require('electron') : null;
-const ipcRenderer = electron ? electron.ipcRenderer : null;
-const fs = (window as any).require ? (window as any).require('fs') : null;
-const path = (window as any).require ? (window as any).require('path') : null;
 
 export default function FolderViewer({ onBack }: { onBack: () => void }) {
   const [rootPath, setRootPath] = useState<string | null>(null);
@@ -90,6 +88,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<'files' | 'editor' | 'chart'>('chart');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Auto-expand folders when searching
   useEffect(() => {
@@ -119,57 +118,81 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
     setExpandedFolders(foldersToExpand);
   }, [searchQuery]);
 
-  const handleSelectFolder = async () => {
-    if (!ipcRenderer) return;
-    const selectedPath = await ipcRenderer.invoke('select-folder');
-    if (selectedPath) {
-      setRootPath(selectedPath);
-      scanDirectory(selectedPath);
-    }
+  const handleSelectFolderClick = () => {
+    fileInputRef.current?.click();
   };
 
   // Files/folders to always hide in the explorer
   const HIDDEN_NAMES = new Set(['.DS_Store', '__MACOSX', 'Thumbs.db', 'desktop.ini', '.Spotlight-V100', '.Trashes']);
   const isHidden = (name: string) => name.startsWith('.') || HIDDEN_NAMES.has(name);
 
-  const scanDirectory = (dirPath: string) => {
-    if (!fs || !path) return;
-    
-    const buildTree = (currentPath: string): FileNode[] => {
-      try {
-        const items = (fs.readdirSync(currentPath) as string[]).filter((name: string) => !isHidden(name));
-        return items.map((item: string) => {
-          const fullPath = path.join(currentPath, item);
-          const stats = fs.statSync(fullPath);
-          const isDirectory = stats.isDirectory();
-          
-          const node: FileNode = {
-            name: item,
-            path: fullPath,
-            isDirectory
-          };
-          
-          if (isDirectory) {
-            // We'll load children lazily or all at once? 
-            // For now let's do it recursively but we should be careful with large folders.
-            // A better way is to only scan when expanded.
-            node.children = []; 
-          }
-          
-          return node;
-        }).sort((a: FileNode, b: FileNode) => {
-          if (a.isDirectory && !b.isDirectory) return -1;
-          if (!a.isDirectory && b.isDirectory) return 1;
-          return a.name.localeCompare(b.name);
-        });
-      } catch (e) {
-        console.error(e);
-        return [];
-      }
-    };
+  const buildTreeFromFiles = (files: File[]): FileNode[] => {
+    const rootNodes: FileNode[] = [];
+    const dirMap = new Map<string, FileNode>();
 
-    const initialTree = buildTree(dirPath);
-    setTree(initialTree);
+    for (const file of files) {
+      if (isHidden(file.name)) continue;
+      
+      const parts = file.webkitRelativePath.split('/');
+      let currentLevel = rootNodes;
+      let currentPath = '';
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        
+        const isFile = i === parts.length - 1;
+        let existingNode = dirMap.get(currentPath);
+        
+        if (!existingNode) {
+          existingNode = {
+            name: part,
+            path: currentPath,
+            isDirectory: !isFile,
+            children: isFile ? undefined : [],
+            file: isFile ? file : undefined,
+            size: isFile ? file.size : 0,
+          };
+          dirMap.set(currentPath, existingNode);
+          currentLevel.push(existingNode);
+        }
+        
+        if (!isFile) {
+          currentLevel = existingNode.children!;
+        }
+      }
+    }
+
+    const sortNodes = (nodes: FileNode[]) => {
+      nodes.sort((a, b) => {
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      nodes.forEach(node => {
+        if (node.children) sortNodes(node.children);
+      });
+    };
+    
+    sortNodes(rootNodes);
+    
+    if (rootNodes.length === 1 && rootNodes[0].isDirectory) {
+        return rootNodes[0].children || [];
+    }
+    return rootNodes;
+  };
+
+  const handleFolderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArray = Array.from(e.target.files);
+      const rootFolderName = filesArray[0].webkitRelativePath.split('/')[0];
+      setRootPath(rootFolderName);
+      const newTree = buildTreeFromFiles(filesArray);
+      setTree(newTree);
+      setExpandedFolders(new Set());
+      setSelectedFile(null);
+      setFileContent('');
+    }
   };
 
   const toggleFolder = (folderPath: string) => {
@@ -178,56 +201,20 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       newExpanded.delete(folderPath);
     } else {
       newExpanded.add(folderPath);
-      // If we're expanding, make sure children are loaded
-      loadChildren(folderPath);
     }
     setExpandedFolders(newExpanded);
-  };
-
-  const loadChildren = (folderPath: string) => {
-    if (!fs || !path) return;
-    
-    const updateTree = (nodes: FileNode[]): FileNode[] => {
-      return nodes.map(node => {
-        if (node.path === folderPath) {
-          const children = (fs.readdirSync(node.path) as string[]).filter((name: string) => !isHidden(name)).map((item: string) => {
-            const fullPath = path.join(node.path, item);
-            const stats = fs.statSync(fullPath);
-            return {
-              name: item,
-              path: fullPath,
-              isDirectory: stats.isDirectory(),
-              children: stats.isDirectory() ? [] : undefined
-            };
-          }).sort((a: any, b: any) => {
-            if (a.isDirectory && !b.isDirectory) return -1;
-            if (!a.isDirectory && b.isDirectory) return 1;
-            return a.name.localeCompare(b.name);
-          });
-          return { ...node, children };
-        } else if (node.children) {
-          return { ...node, children: updateTree(node.children) };
-        }
-        return node;
-      });
-    };
-    
-    setTree(prevTree => updateTree(prevTree));
   };
 
   const [isTruncated, setIsTruncated] = useState<boolean>(false);
   const [isTooLarge, setIsTooLarge] = useState<boolean>(false);
   const [fileSizeStr, setFileSizeStr] = useState<string>('');
 
-  const loadPreview = (file: FileNode) => {
-    if (!fs) return;
+  const loadPreview = async (file: FileNode) => {
     try {
+      if (!file.file) return;
       const PREVIEW_LIMIT = 2 * 1024 * 1024; // 2MB preview
-      const buffer = Buffer.alloc(PREVIEW_LIMIT);
-      const fd = fs.openSync(file.path, 'r');
-      fs.readSync(fd, buffer, 0, PREVIEW_LIMIT, 0);
-      fs.closeSync(fd);
-      const content = buffer.toString('utf-8');
+      const slice = file.file.slice(0, PREVIEW_LIMIT);
+      const content = await slice.text();
       setFileContent(content);
       setIsTruncated(true);
       setIsTooLarge(false);
@@ -237,7 +224,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const handleFileClick = (file: FileNode) => {
+  const handleFileClick = async (file: FileNode) => {
     if (file.isDirectory) {
       toggleFolder(file.path);
     } else {
@@ -245,37 +232,35 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       setIsTruncated(false);
       setIsTooLarge(false);
       setFileSizeStr('');
-      if (fs) {
-        try {
-          // Special check: Only for analysis_state files that are >= 15MB
-          const isAnalysisState = file.name.toLowerCase().includes('analysis_state');
-          if (isAnalysisState) {
-            const stats = fs.statSync(file.path);
-            const sizeMBVal = stats.size / (1024 * 1024);
-            const sizeMB = sizeMBVal.toFixed(1);
-            setFileSizeStr(`${sizeMB} MB`);
+      
+      try {
+        if (!file.file) return;
 
-            if (sizeMBVal >= 15) {
-              setIsTooLarge(true);
-              setFileContent('');
-              setActiveTab('editor');
-              return;
-            }
-          }
+        // Special check: Only for analysis_state files that are >= 15MB
+        const isAnalysisState = file.name.toLowerCase().includes('analysis_state');
+        const sizeMBVal = (file.size || 0) / (1024 * 1024);
+        const sizeMB = sizeMBVal.toFixed(1);
+        setFileSizeStr(`${sizeMB} MB`);
 
-          const content = fs.readFileSync(file.path, 'utf-8');
-          setFileContent(content);
-          // Automatically switch to Chart tab if it's a known chart type
-          if (determineChartType(file.name, content)) {
-            setActiveTab('chart');
-          } else {
-            setActiveTab('editor');
-          }
-        } catch (err: any) {
-          console.error('Error reading file:', err);
-          setFileContent(`Error loading file: ${err.message || err}`);
+        if (isAnalysisState && sizeMBVal >= 15) {
+          setIsTooLarge(true);
+          setFileContent('');
+          setActiveTab('editor');
+          return;
+        }
+
+        const content = await file.file.text();
+        setFileContent(content);
+        // Automatically switch to Chart tab if it's a known chart type
+        if (determineChartType(file.name, content)) {
+          setActiveTab('chart');
+        } else {
           setActiveTab('editor');
         }
+      } catch (err: any) {
+        console.error('Error reading file:', err);
+        setFileContent(`Error loading file: ${err.message || err}`);
+        setActiveTab('editor');
       }
     }
   };
@@ -351,6 +336,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       if (mode === 'project_analysis_result') return <CodebaseAnalyzer data={data} />;
       if (mode === 'API-report') return <ApiAnalysisVisualization data={data} />;
       if (mode === 'program_flow') return <ProgramFlowView data={data} />;
+      if (mode === 'capability_model') return <CapabilityModelViewer data={data} />;
       
       return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8 text-center">
@@ -397,8 +383,17 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
           <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
             <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-3xl mb-4 text-orange-500">📂</div>
             <p className="text-sm text-gray-500 mb-6">Open a folder to start browsing your project files</p>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleFolderChange} 
+              //@ts-ignore - webkitdirectory is a non-standard attribute but works in modern browsers
+              webkitdirectory="true" 
+              directory="true" 
+            />
             <button 
-              onClick={handleSelectFolder}
+              onClick={handleSelectFolderClick}
               className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-all shadow-sm"
             >
               Open Folder
@@ -443,7 +438,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
                 <span className="text-orange-500 font-bold mr-2">/</span>
                 {selectedFile.path
                   .replace(rootPath, '')
-                  .split(path ? path.sep : '/')
+                  .split(/[/\\\\]/)
                   .filter(Boolean)
                   .map((part, i, arr) => (
                     <React.Fragment key={i}>

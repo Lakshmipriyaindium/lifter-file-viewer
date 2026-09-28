@@ -30,14 +30,14 @@ const ProcessFlowVisualizer: React.FC<ProcessFlowVisualizerProps> = ({ data }) =
 
   // Get unique sources and max depth
   const sources = useMemo(() => {
-    return Array.from(new Set(data.steps.map(step => step.source)));
+    return Array.from(new Set((data.steps || []).map(step => step.source)));
   }, [data.steps]);
 
-  const maxDepth = data.max_depth_reached;
+  const maxDepth = data.max_depth_reached || 0;
 
   // Filter steps
   const filteredSteps = useMemo(() => {
-    return data.steps.filter(step => {
+    return (data.steps || []).filter(step => {
       const matchesSearch = searchTerm === '' || 
         step.step_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         step.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
