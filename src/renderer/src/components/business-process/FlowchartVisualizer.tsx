@@ -14,7 +14,7 @@ const FlowchartVisualizer: React.FC<FlowchartVisualizerProps> = ({ data }) => {
   // Group steps by depth
   const stepsByDepth = useMemo(() => {
     const grouped: { [key: number]: BusinessProcessStep[] } = {};
-    for (const step of data.steps) {
+    for (const step of data.steps || []) {
       if (!grouped[step.depth]) {
         grouped[step.depth] = [];
       }

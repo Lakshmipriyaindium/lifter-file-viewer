@@ -2152,6 +2152,84 @@ const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data:
     </div>
   );
 
+  const renderFlowGroups = () => {
+    const flowGroups = Object.values(data.flow_groups || {});
+    
+    if (flowGroups.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+            <span className="text-2xl">📁</span>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">No Flow Groups Found</h3>
+          <p className="text-gray-500 max-w-md text-center">
+            There are no grouped flows in this analysis.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <span>📁</span> Flow Groups
+            </h2>
+            <p className="text-gray-600 mt-1">Grouped related business flows</p>
+          </div>
+          <span className="text-sm text-gray-600">{flowGroups.length} groups</span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6">
+          {flowGroups.map((group: any) => (
+            <div key={group.group_id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-5 border-b border-gray-100 bg-gray-50 flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    {group.group_id}
+                  </h3>
+                  {group.purpose && <p className="text-gray-600 text-sm mt-1">{group.purpose}</p>}
+                </div>
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                  {group.flow_count || group.flow_ids?.length || 0} Flows
+                </span>
+              </div>
+              <div className="p-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  {group.feature_id && (
+                    <div>
+                      <span className="font-semibold text-gray-700">Feature:</span>
+                      <span className="ml-2 text-gray-600">{group.feature_id}</span>
+                    </div>
+                  )}
+                  {group.representative_flow_id && (
+                    <div>
+                      <span className="font-semibold text-gray-700">Representative Flow:</span>
+                      <span className="ml-2 text-gray-600">{group.representative_flow_id}</span>
+                    </div>
+                  )}
+                </div>
+                {group.flow_ids && group.flow_ids.length > 0 && (
+                  <div className="mt-4">
+                    <span className="font-semibold text-gray-700 text-sm mb-2 block">Flows in this group:</span>
+                    <div className="flex flex-wrap gap-2">
+                      {group.flow_ids.map((flowId: string) => (
+                        <span key={flowId} className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-xs text-gray-700">
+                          {flowId}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderFeatures = () => (
     <div className="flex gap-6">
       {/* Side Navigation */}
@@ -2775,6 +2853,7 @@ const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data:
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'flows', label: 'Flows', icon: '🔀' },
+    { id: 'flowGroups', label: 'Flow Groups', icon: '📁' },
     { id: 'features', label: 'Features', icon: '🌟' },
     { id: 'rules', label: 'Business Rules', icon: '📜' },
     { id: 'stories', label: 'User Stories', icon: '👥' },
@@ -2826,6 +2905,7 @@ const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data:
       <div className="px-8 py-6">
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'flows' && renderFlows()}
+        {activeTab === 'flowGroups' && renderFlowGroups()}
         {activeTab === 'features' && renderFeatures()}
         {activeTab === 'rules' && renderBusinessRules()}
         {activeTab === 'stories' && (
