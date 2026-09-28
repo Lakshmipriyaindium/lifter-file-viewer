@@ -1,5 +1,7 @@
 @echo off
 :: Lifter-File-Viewer - Zero-Permission Windows Setup Script
+:: NOTE: This launcher is for Windows only.
+:: macOS/Linux users: run ./install.sh from this same folder.
 echo Launching automated Windows installer...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ScriptDir='%~dp0'; Invoke-Expression (([System.IO.File]::ReadAllText('%~f0') -split '(?ms)^# <POWERSHELL_START>')[1])"
 echo ------------------------------------------------
@@ -8,14 +10,14 @@ exit /b
 
 # <POWERSHELL_START>
 # ============================================================
-# Lifter-File-Viewer — Windows Setup & Installer Script
+# Lifter-File-Viewer — Windows Setup & Dev Launcher Script
 # ============================================================
 
 # Enable UTF8 output representation
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "   Lifter-File-Viewer  ·  Windows Installer       " -ForegroundColor Cyan
+Write-Host "   Lifter-File-Viewer  ·  Windows Dev Launcher    " -ForegroundColor Cyan
 Write-Host "   Electron + Vite + React + TypeScript App       " -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
@@ -51,7 +53,7 @@ if (-not $hasNode) {
         & winget install --id OpenJS.NodeJS.LTS -e --silent --accept-source-agreements --accept-package-agreements
         # Refresh path env variables to make node available immediately in this session
         $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
-        
+
         # Verify again
         $hasNode = $null -ne (Get-Command node -ErrorAction SilentlyContinue)
         if (-not $hasNode) {
@@ -73,6 +75,32 @@ if (-not $hasNode) {
 $nodeVersion = & node -v
 Write-Host "✔ Node.js found: $nodeVersion" -ForegroundColor Green
 
+# Check/Install npm
+$hasNpm = $null -ne (Get-Command npm -ErrorAction SilentlyContinue)
+if (-not $hasNpm) {
+    if ($hasWinget) {
+        Write-Host "⌛ npm not found. Installing / repairing Node.js LTS via winget..." -ForegroundColor Cyan
+        & winget install --id OpenJS.NodeJS.LTS -e --silent --accept-source-agreements --accept-package-agreements
+        # Refresh path env
+        $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
+
+        # Verify again
+        $hasNpm = $null -ne (Get-Command npm -ErrorAction SilentlyContinue)
+        if (-not $hasNpm) {
+            $standardPath = "$env:ProgramFiles\nodejs"
+            if (Test-Path "$standardPath\npm.cmd") {
+                $env:Path += ";$standardPath"
+                $hasNpm = $true
+            }
+        }
+    }
+}
+
+if (-not $hasNpm) {
+    Write-Error "npm not found. Please reinstall Node.js (which includes npm) from https://nodejs.org/"
+    exit 1
+}
+
 $npmVersion = & npm -v
 Write-Host "✔ npm found: $npmVersion" -ForegroundColor Green
 
@@ -88,36 +116,33 @@ $RepoDirName = "Lifter-File-Viewer"
 $ProjectDir = $ScriptDir
 
 if (-not (Test-Path "$ScriptDir\package.json")) {
-    if (Test-Path "$ScriptDir\$RepoDirName\package.json") {
-        $ProjectDir = "$ScriptDir\$RepoDirName"
-        Write-Host "✔ Project source found at: $ProjectDir" -ForegroundColor Green
-    } elseif (Test-Path "$ScriptDir\$RepoDirName\.git") {
-        $ProjectDir = "$ScriptDir\$RepoDirName"
-        Write-Host "⌛ Repository already cloned at $ProjectDir. Pulling latest changes..." -ForegroundColor Cyan
-        Set-Location $ProjectDir
-        & git pull --ff-only
-        Write-Host "✔ Repository is up to date." -ForegroundColor Green
+    $targetCloneDir = "$ScriptDir\$RepoDirName"
+    if (Test-Path $targetCloneDir) {
+        Write-Host "⌛ Found existing directory at $targetCloneDir." -ForegroundColor Yellow
+        Write-Host "⌛ Deleting existing clone for a fresh setup..." -ForegroundColor Yellow
+        Remove-Item -Recurse -Force $targetCloneDir
+        Write-Host "✔ Previous directory removed." -ForegroundColor Green
+    }
+
+    $ProjectDir = $targetCloneDir
+    Write-Host "⌛ Attempting fresh git clone..." -ForegroundColor Cyan
+    & git clone $RepoUrl $ProjectDir
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "✔ Repository cloned successfully." -ForegroundColor Green
     } else {
-        $ProjectDir = "$ScriptDir\$RepoDirName"
-        Write-Host "⌛ Project source not found locally. Attempting git clone..." -ForegroundColor Cyan
-        & git clone $RepoUrl $ProjectDir
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "✔ Repository cloned successfully." -ForegroundColor Green
-        } else {
-            Write-Host ""
-            Write-Host "✖ Could not clone the repository." -ForegroundColor Red
-            Write-Host "  This usually means you do not have access to the private GitHub repo." -ForegroundColor Yellow
-            Write-Host ""
-            Write-Host "  Please ask the project team to share the project as a ZIP file." -ForegroundColor Yellow
-            Write-Host "  Then extract it so your folder looks like this:" -ForegroundColor Yellow
-            Write-Host "    📁 Lifter-File-Viewer-setup/" -ForegroundColor Yellow
-            Write-Host "      ├── install.bat          ← installer script" -ForegroundColor Yellow
-            Write-Host "      ├── package.json" -ForegroundColor Yellow
-            Write-Host "      └── src/" -ForegroundColor Yellow
-            Write-Host ""
-            Write-Host "  Then run: install.bat" -ForegroundColor Yellow
-            exit 1
-        }
+        Write-Host ""
+        Write-Host "✖ Could not clone the repository." -ForegroundColor Red
+        Write-Host "  This usually means you do not have access to the private GitHub repo." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  Please ask the project team to share the project as a ZIP file." -ForegroundColor Yellow
+        Write-Host "  Then extract it so your folder looks like this:" -ForegroundColor Yellow
+        Write-Host "    📁 Lifter-File-Viewer-setup/" -ForegroundColor Yellow
+        Write-Host "      ├── install.bat          ← installer script" -ForegroundColor Yellow
+        Write-Host "      ├── package.json" -ForegroundColor Yellow
+        Write-Host "      └── src/" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  Then run: install.bat" -ForegroundColor Yellow
+        exit 1
     }
 } else {
     Write-Host "✔ Project source found alongside this script: $ProjectDir" -ForegroundColor Green
@@ -134,62 +159,44 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "✔ All npm dependencies installed." -ForegroundColor Green
 
-# ── Step 4: Build & package application ─────────────────────
-Write-Host "`n━━━  Building the application  ━━━" -ForegroundColor White
-Write-Host "⌛ Running: npm run dist (this may take a few minutes) ..." -ForegroundColor Cyan
-$env:NODE_TLS_REJECT_UNAUTHORIZED="0"
-& npm run dist
+# ── Step 4: Launch Electron in development mode ─────────────
+Write-Host "`n━━━  Launching Electron Dev Mode  ━━━" -ForegroundColor White
+
+$packageJsonPath = "$ProjectDir\package.json"
+if (-not (Test-Path $packageJsonPath)) {
+    Write-Error "package.json not found in $ProjectDir"
+    exit 1
+}
+
+$packageJson = Get-Content -Raw -Path $packageJsonPath | ConvertFrom-Json
+$scriptNames = @()
+if ($null -ne $packageJson.scripts) {
+    $scriptNames = @($packageJson.scripts.PSObject.Properties.Name)
+}
+
+$devScript = $null
+if ($scriptNames -contains "electron:dev") {
+    $devScript = "electron:dev"
+} elseif ($scriptNames -contains "dev:electron") {
+    $devScript = "dev:electron"
+} elseif ($scriptNames -contains "start") {
+    $devScript = "start"
+} elseif ($scriptNames -contains "dev") {
+    $devScript = "dev"
+}
+
+if ([string]::IsNullOrEmpty($devScript)) {
+    Write-Error "No Electron dev script found. Expected one of: electron:dev, dev:electron, start, dev"
+    exit 1
+}
+
+Write-Host "✔ Using npm script: $devScript" -ForegroundColor Green
+Write-Host "⌛ Running: npm run $devScript" -ForegroundColor Cyan
+Write-Host "  Press Ctrl+C to stop the development app." -ForegroundColor Yellow
+
+& npm run $devScript
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Application packaging failed."
+    Write-Error "Failed to run npm script '$devScript'."
     exit 1
 }
-Write-Host "✔ Application packaged successfully." -ForegroundColor Green
-
-# ── Step 5: Install & launch built app ──────────────────────
-Write-Host "`n━━━  Installing and Launching  ━━━" -ForegroundColor White
-
-$DistDir = "$ProjectDir\dist_electron"
-$exeFile = Get-ChildItem -Path $DistDir -Filter "*.exe" | Select-Object -First 1
-
-if ($null -eq $exeFile) {
-    Write-Error "Could not find any generated .exe file in $DistDir"
-    exit 1
-}
-
-Write-Host "✔ Found generated package: $($exeFile.Name)" -ForegroundColor Green
-
-$desktopPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Desktop)
-$targetPath = "$env:USERPROFILE\AppData\Local\Programs\Lifter-File-Viewer"
-
-if (-not (Test-Path $targetPath)) {
-    New-Item -ItemType Directory -Force -Path $targetPath | Out-Null
-}
-
-$destExe = "$targetPath\$($exeFile.Name)"
-Write-Host "⌛ Copying executable to local programs directory..." -ForegroundColor Cyan
-Copy-Item $exeFile.FullName -Destination $destExe -Force
-
-# Unblock the file to bypass Windows SmartScreen warnings
-Write-Host "⌛ Lifting Windows security restrictions (Unblock-File)..." -ForegroundColor Cyan
-Unblock-File -Path $destExe
-Write-Host "✔ Done! Security blocks removed." -ForegroundColor Green
-
-# Create Desktop Shortcut
-try {
-    $WshShell = New-Object -ComObject WScript.Shell
-    $Shortcut = $WshShell.CreateShortcut("$desktopPath\Lifter-File-Viewer.lnk")
-    $Shortcut.TargetPath = $destExe
-    $Shortcut.WorkingDirectory = $targetPath
-    $Shortcut.Save()
-    Write-Host "✔ Created desktop shortcut: Lifter-File-Viewer" -ForegroundColor Green
-} catch {
-    Write-Host "⚠ Failed to create desktop shortcut. You can find the executable at: $destExe" -ForegroundColor Yellow
-}
-
-Write-Host "`n━━━  Installation Complete 🎉  ━━━" -ForegroundColor White
-Write-Host "  Lifter-File-Viewer has been installed!" -ForegroundColor Green
-Write-Host "  Launch Location: $destExe" -ForegroundColor Green
-Write-Host "  Starting application now..." -ForegroundColor Cyan
-
-# Launch
-Start-Process $destExe
+ 

@@ -1,826 +1,212 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 set -euo pipefail
-IFS=$'\n\t'
 
-# ============================================================
-# Lifter-File-Viewer — Developer Setup Script
-# Supports macOS and Linux (Debian/Ubuntu/Arch/Fedora)
-#
-# One-liner usage (no prior git clone needed):
-#   bash <(curl -fsSL https://raw.githubusercontent.com/IndiumSoftware-AppEngineering/Lifter-File-Viewer/main/install.sh)
-#
-# Or if you already downloaded this file:
-#   bash install.sh
-# ============================================================
+# Lifter-File-Viewer - macOS/Linux setup and dev launcher
 
-# ── Colours ─────────────────────────────────────────────────
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'  # No Colour
+echo "Launching automated dev setup..."
 
-# ── Helpers ──────────────────────────────────────────────────
-error()   { echo -e "${RED}${BOLD}✖  Error: $1${NC}" >&2; exit 1; }
-warn()    { echo -e "${YELLOW}⚠  Warning: $1${NC}" >&2; }
-success() { echo -e "${GREEN}✔  $1${NC}"; }
-info()    { echo -e "${CYAN}➜  $1${NC}"; }
-step()    { echo -e "\n${BOLD}━━━  $1  ━━━${NC}"; }
+echo "=================================================="
+echo "   Lifter-File-Viewer  -  macOS/Linux Dev Launcher"
+echo "   Electron + Vite + React + TypeScript App       "
+echo "=================================================="
 
-# ── Banner ───────────────────────────────────────────────────
-echo ""
-echo -e "${CYAN}${BOLD}"
-echo "  ╔════════════════════════════════════════════════╗"
-echo "  ║        Lifter-File-Viewer  ·  Installer        ║"
-echo "  ║   Electron + Vite + React + TypeScript App     ║"
-echo "  ╚════════════════════════════════════════════════╝"
-echo -e "${NC}"
+# Step 1: System checks
+echo
+echo "--- Checking system requirements ---"
 
-# ── Detect OS ────────────────────────────────────────────────
-OS="$(uname -s)"
-case "$OS" in
-    Darwin) OS_NAME="macOS" ;;
-    Linux)  OS_NAME="Linux"  ;;
-    *)      error "Unsupported operating system: $OS" ;;
-esac
-success "Detected OS: $OS_NAME"
+OS_NAME="$(uname -s)"
 
-# ── Track install user (needed for MDM/root chown at the end) ─
-INSTALL_USER=""
+# Ensure common paths are in PATH
+for p in /opt/homebrew/bin /usr/local/bin; do
+  if [[ -d "$p" ]] && [[ ":$PATH:" != *":$p:"* ]]; then
+    export PATH="$p:$PATH"
+  fi
+done
 
-# ── Ensure HOME is set (MDM / JAMF environments) ─────────────
-if [ -z "${HOME:-}" ]; then
-    if command -v scutil >/dev/null 2>&1; then
-        CURRENT_USER=$( /usr/sbin/scutil <<< "show State:/Users/ConsoleUser" \
-            | awk '/Name :/ { print $3 }' || true )
-        if [ -n "${CURRENT_USER:-}" ] \
-            && [ "$CURRENT_USER" != "loginwindow" ] \
-            && [ "$CURRENT_USER" != "_mbsetupuser" ]; then
-            export HOME=$( /usr/bin/dscl . -read "/Users/$CURRENT_USER" \
-                NFSHomeDirectory | awk '{print $2}' )
-            INSTALL_USER="$CURRENT_USER"
-        else
-            error "No console user is logged in. Deferring installation."
-        fi
-    elif id -un >/dev/null 2>&1; then
-        INSTALL_USER="$(id -un)"
-        export HOME=$(getent passwd "$INSTALL_USER" | cut -d: -f6)
-        if [ -z "$HOME" ]; then export HOME="/root"; fi
-    else
-        export HOME="/root"
-    fi
+# Load nvm if present but not yet loaded
+if ! command -v node >/dev/null 2>&1 && [[ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]]; then
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  # shellcheck source=/dev/null
+  \. "$NVM_DIR/nvm.sh" 2>/dev/null || true
 fi
 
-# ── Ensure SHELL is set (also may be unbound in JAMF) ────────
-if [ -z "${SHELL:-}" ]; then
-    if command -v zsh >/dev/null 2>&1; then
-        SHELL="$(command -v zsh)"
-    elif command -v bash >/dev/null 2>&1; then
-        SHELL="$(command -v bash)"
-    else
-        SHELL="/bin/sh"
-    fi
-    export SHELL
-fi
+print_install_hint() {
+  local tool="$1"
 
-# ── Repository details ───────────────────────────────────────
+  if [[ "$OS_NAME" == "Darwin" ]]; then
+    if command -v brew >/dev/null 2>&1; then
+      echo "Install with Homebrew: brew install $tool"
+    else
+      echo "Install Homebrew first from https://brew.sh/, then install $tool (or install Node.js from https://nodejs.org/)"
+    fi
+  elif [[ "$OS_NAME" == "Linux" ]]; then
+    echo "Install $tool using your Linux package manager (apt, dnf, yum, pacman, etc.) or from https://nodejs.org/"
+  else
+    echo "Install $tool manually for your OS."
+  fi
+}
+
+install_tool() {
+  local tool="$1"
+  echo "Attempting automated installation for: $tool ..."
+
+  if [[ "$OS_NAME" == "Darwin" ]]; then
+    if command -v brew >/dev/null 2>&1; then
+      local brew_pkg="$tool"
+      if [[ "$tool" == "npm" ]]; then
+        brew_pkg="node"
+      fi
+      echo "Installing $brew_pkg using Homebrew..."
+      brew install "$brew_pkg" || return 1
+      hash -r 2>/dev/null || true
+      return 0
+    else
+      echo "Homebrew is not installed. Cannot auto-install $tool."
+      return 1
+    fi
+  elif [[ "$OS_NAME" == "Linux" ]]; then
+    local pkg="$tool"
+    if [[ "$tool" == "node" ]]; then
+      pkg="nodejs"
+    fi
+    if command -v apt-get >/dev/null 2>&1; then
+      echo "Installing $pkg via apt-get..."
+      if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+        apt-get update && apt-get install -y "$pkg"
+      elif command -v sudo >/dev/null 2>&1; then
+        sudo apt-get update && sudo apt-get install -y "$pkg"
+      else
+        return 1
+      fi
+    elif command -v dnf >/dev/null 2>&1; then
+      echo "Installing $pkg via dnf..."
+      if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+        dnf install -y "$pkg"
+      elif command -v sudo >/dev/null 2>&1; then
+        sudo dnf install -y "$pkg"
+      else
+        return 1
+      fi
+    elif command -v pacman >/dev/null 2>&1; then
+      echo "Installing $pkg via pacman..."
+      if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+        pacman -Sy --noconfirm "$pkg"
+      elif command -v sudo >/dev/null 2>&1; then
+        sudo pacman -Sy --noconfirm "$pkg"
+      else
+        return 1
+      fi
+    else
+      return 1
+    fi
+    hash -r 2>/dev/null || true
+    return 0
+  fi
+  return 1
+}
+
+# Check Git
+if ! command -v git >/dev/null 2>&1; then
+  echo "Git not found."
+  if ! install_tool "git" || ! command -v git >/dev/null 2>&1; then
+    echo "ERROR: git not found."
+    print_install_hint "git"
+    exit 1
+  fi
+fi
+echo "OK: git found: $(git --version)"
+
+# Check Node.js
+if ! command -v node >/dev/null 2>&1; then
+  echo "Node.js not found."
+  if ! install_tool "node" || ! command -v node >/dev/null 2>&1; then
+    echo "ERROR: node not found."
+    print_install_hint "node"
+    exit 1
+  fi
+fi
+echo "OK: node found: $(node -v)"
+
+# Check npm
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm not found."
+  if ! install_tool "npm" || ! command -v npm >/dev/null 2>&1; then
+    echo "ERROR: npm not found."
+    print_install_hint "npm"
+    exit 1
+  fi
+fi
+echo "OK: npm found: $(npm -v)"
+
+# Step 2: Resolve source directory / clone if needed
+echo
+echo "--- Locating project source ---"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_URL="https://github.com/Lakshmipriyaindium/lifter-file-viewer.git"
 REPO_DIR_NAME="Lifter-File-Viewer"
+PROJECT_DIR="$SCRIPT_DIR"
 
-# ── Pre-built release (preferred for corporate machines) ─────
-# If a .dmg is published to GitHub Releases, the script will
-# download and install it directly — no npm/build needed.
-# Set to "true" to skip pre-built and always build from source.
-SKIP_PREBUILT="${SKIP_PREBUILT:-false}"
-GITHUB_RELEASES_API="https://api.github.com/repos/Lakshmipriyaindium/lifter-file-viewer/releases/latest"
-
-# ── Minimum required versions ────────────────────────────────
-# The app works on any Node ≥16. Whatever is already on the
-# machine will be used — we never change the system version.
-MIN_NODE_MAJOR=16
-MIN_NPM_MAJOR=8
-
-# ============================================================
-# Function: detect_all_shells
-# Returns "shell_name|config_file" lines for every shell that
-# has an existing config file (bash, zsh, fish).
-# Falls back to $SHELL detection if no config files are found.
-# ============================================================
-detect_all_shells() {
-    local shells=""
-
-    # bash — prefer .bashrc over .bash_profile
-    if [ -f "$HOME/.bashrc" ]; then
-        shells="${shells}bash|$HOME/.bashrc\n"
-    elif [ -f "$HOME/.bash_profile" ]; then
-        shells="${shells}bash|$HOME/.bash_profile\n"
-    fi
-
-    # zsh
-    if [ -f "$HOME/.zshrc" ]; then
-        shells="${shells}zsh|$HOME/.zshrc\n"
-    fi
-
-    # fish
-    if [ -f "$HOME/.config/fish/config.fish" ]; then
-        shells="${shells}fish|$HOME/.config/fish/config.fish\n"
-    fi
-
-    # Fallback: no config found — use $SHELL to decide which one to create
-    if [ -z "$shells" ]; then
-        local login_shell=""
-        if [ -n "${SHELL:-}" ]; then
-            login_shell=$(basename "$SHELL")
-        fi
-        case "$login_shell" in
-            fish) shells="fish|$HOME/.config/fish/config.fish" ;;
-            zsh)  shells="zsh|$HOME/.zshrc" ;;
-            bash|*) shells="bash|$HOME/.bashrc" ;;
-        esac
-    fi
-
-    # Remove trailing blank lines and print
-    printf '%b' "$shells" | sed '/^$/d'
-}
-
-# ============================================================
-# STEP 1 — Check for required system tools
-# ============================================================
-step "Checking system requirements"
-
-# git
-if ! command -v git >/dev/null 2>&1; then
-    error "Git is not installed.\n  macOS : xcode-select --install\n  Ubuntu: sudo apt install git"
-fi
-GIT_VERSION=$(git --version | awk '{print $3}')
-success "Git found: $GIT_VERSION"
-
-# curl
-if ! command -v curl >/dev/null 2>&1; then
-    error "curl is not installed.\n  Ubuntu: sudo apt install curl"
-fi
-success "curl found: $(curl --version | head -1 | awk '{print $2}')"
-
-# ============================================================
-# STEP 2 — Try pre-built release (fastest path, no npm needed)
-# Works on ALL machines including those with corporate firewalls
-# as long as the DMG is hosted somewhere accessible.
-# ============================================================
-step "Checking for pre-built release"
-
-PREBUILT_INSTALLED=false
-
-if [ "$SKIP_PREBUILT" = "true" ]; then
-    info "Skipping pre-built release (SKIP_PREBUILT=true). Building from source …"
-elif [ "$OS_NAME" != "macOS" ]; then
-    info "Pre-built DMG only available for macOS. Building from source for Linux …"
-else
-    info "Checking GitHub Releases for a pre-built installer …"
-
-    # Try to fetch the latest release metadata
-    RELEASE_JSON=$(curl -fsSL \
-        --connect-timeout 10 \
-        --speed-limit 1 --speed-time 8 \
-        "$GITHUB_RELEASES_API" 2>/dev/null || echo "")
-
-    if [ -z "$RELEASE_JSON" ]; then
-        warn "Could not reach GitHub API — no pre-built release available. Building from source …"
-    else
-        # Extract .dmg download URL from release JSON
-        DMG_URL=$(echo "$RELEASE_JSON" \
-            | grep -o '"browser_download_url": *"[^"]*\.dmg"' \
-            | head -1 \
-            | grep -o 'https://[^"]*' || true)
-
-        if [ -z "$DMG_URL" ]; then
-            info "No pre-built .dmg found in latest release. Building from source …"
-        else
-            info "Pre-built release found: $DMG_URL"
-            info "Downloading installer (this is the only download needed) …"
-
-            TMP_DMG=$(mktemp /tmp/lifter-installer-XXXXXX.dmg)
-
-            if curl -fL \
-                    --connect-timeout 15 \
-                    --speed-limit 100 \
-                    --speed-time 15 \
-                    --max-time 600 \
-                    -o "$TMP_DMG" \
-                    "$DMG_URL" 2>/dev/null; then
-
-                success "Downloaded pre-built installer."
-                info "Mounting DMG …"
-                MOUNT_POINT=$(mktemp -d)
-                hdiutil attach "$TMP_DMG" -mountpoint "$MOUNT_POINT" -nobrowse -quiet \
-                    || error "Failed to mount the downloaded DMG."
-
-                FOUND_APP=$(find "$MOUNT_POINT" -name "*.app" -maxdepth 2 | head -1 || true)
-                if [ -z "$FOUND_APP" ]; then
-                    hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
-                    rm -f "$TMP_DMG"
-                    warn "No .app found inside DMG — falling back to build from source."
-                else
-                    INSTALL_PATH="/Applications/$(basename "$FOUND_APP")"
-                    if [ -d "$INSTALL_PATH" ]; then
-                        sudo rm -rf "$INSTALL_PATH" 2>/dev/null \
-                            || rm -rf "$INSTALL_PATH" 2>/dev/null || true
-                    fi
-                    sudo cp -R "$FOUND_APP" "/Applications/" 2>/dev/null \
-                        || cp -R "$FOUND_APP" "/Applications/" \
-                        || error "Failed to copy app to /Applications. Try: sudo bash install.sh"
-
-                    hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
-                    rm -f "$TMP_DMG"
-
-                    # Remove quarantine
-                    sudo xattr -c "$INSTALL_PATH" 2>/dev/null || xattr -c "$INSTALL_PATH" 2>/dev/null || true
-                    sudo find "$INSTALL_PATH" -exec xattr -c {} + 2>/dev/null || true
-
-                    success "✅  Lifter-File-Viewer installed to /Applications (from pre-built release)."
-                    info "Launching …"
-                    open "$INSTALL_PATH"
-                    PREBUILT_INSTALLED=true
-                fi
-            else
-                rm -f "$TMP_DMG"
-                warn "Pre-built DMG download failed — building from source …"
-            fi
-        fi
-    fi
-fi
-
-# If pre-built install succeeded, skip all build steps
-if [ "$PREBUILT_INSTALLED" = true ]; then
-    echo ""
-    echo -e "${GREEN}${BOLD}  Lifter-File-Viewer has been installed and launched!${NC}"
-    echo -e "  Find it in: /Applications/Lifter-File-Viewer.app"
-    echo -e "  Open via Spotlight: ⌘ Space → Lifter-File-Viewer"
-    echo ""
-    exit 0
-fi
-
-# ============================================================
-# STEP 3 — Locate or clone the project source code
-# (Only reached when building from source)
-# ============================================================
-step "Locating project source"
-
-# ── Resolve the directory that contains this script ──────────
-if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" != "bash" ] && [[ "${BASH_SOURCE[0]}" != /dev/fd/* ]] && [[ "${BASH_SOURCE[0]}" != /proc/* ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-else
-    SCRIPT_DIR="$(pwd)"   # curl | bash fallback
-fi
-
-# ── Priority 1: source bundled INSIDE the same folder as install.sh ──
-#    (User shared a zip/folder containing install.sh + project files)
-if [ -f "$SCRIPT_DIR/package.json" ]; then
-    PROJECT_DIR="$SCRIPT_DIR"
-    success "Project source found alongside this script: $PROJECT_DIR"
-    success "No git clone needed — using bundled source."
-
-# ── Priority 2: already cloned (delete and reclone) ──────────
-#    If the git repository was cloned previously, delete and reclone it fresh
-elif [ -d "$SCRIPT_DIR/$REPO_DIR_NAME/.git" ] || [ -d "$SCRIPT_DIR/lifter-file-viewer/.git" ]; then
-    TARGET_CLONE_DIR="$SCRIPT_DIR/$REPO_DIR_NAME"
-    [ -d "$SCRIPT_DIR/lifter-file-viewer/.git" ] && TARGET_CLONE_DIR="$SCRIPT_DIR/lifter-file-viewer"
-    PROJECT_DIR="$SCRIPT_DIR/$REPO_DIR_NAME"
-
-    info "Repository already cloned at: $TARGET_CLONE_DIR"
-    info "Deleting existing repository and recloning …"
+if [[ ! -f "$SCRIPT_DIR/package.json" ]]; then
+  TARGET_CLONE_DIR="$SCRIPT_DIR/$REPO_DIR_NAME"
+  if [[ -d "$TARGET_CLONE_DIR" ]]; then
+    echo "Found existing directory at: $TARGET_CLONE_DIR"
+    echo "Deleting existing clone for a fresh setup..."
     rm -rf "$TARGET_CLONE_DIR"
-    if [ "$TARGET_CLONE_DIR" != "$PROJECT_DIR" ] && [ -d "$PROJECT_DIR" ]; then
-        rm -rf "$PROJECT_DIR"
-    fi
+    echo "OK: previous directory removed."
+  fi
 
-    info "Attempting git clone …"
-    if git clone "$REPO_URL" "$PROJECT_DIR"; then
-        success "Repository recloned successfully."
-    else
-        echo ""
-        echo -e "${RED}${BOLD}✖  Could not clone the repository.${NC}" >&2
-        echo -e "${YELLOW}   This usually means you do not have access to the private GitHub repo." >&2
-        echo "" >&2
-        echo -e "   Please ask the project team to share the project as a ZIP file." >&2
-        echo -e "   Then extract it so your folder looks like this:" >&2
-        echo "" >&2
-        echo -e "     📁 Lifter-File-Viewer-setup/"  >&2
-        echo -e "       ├── install.sh          ← this script" >&2
-        echo -e "       ├── package.json" >&2
-        echo -e "       ├── src/" >&2
-        echo -e "       └── ... (other project files)" >&2
-        echo "" >&2
-        echo -e "   Then run:  bash install.sh" >&2
-        echo -e "${NC}" >&2
-        exit 1
-    fi
-
-# ── Priority 3: source in a sub-folder next to install.sh ────
-#    (e.g. install.sh is one level above Lifter-File-Viewer/ without git)
-elif [ -f "$SCRIPT_DIR/$REPO_DIR_NAME/package.json" ]; then
-    PROJECT_DIR="$SCRIPT_DIR/$REPO_DIR_NAME"
-    success "Project source found at: $PROJECT_DIR"
-    success "No git clone needed — using bundled source."
-
-# ── Priority 4: try git clone (public repo or user has access) ─
-else
-    PROJECT_DIR="$SCRIPT_DIR/$REPO_DIR_NAME"
-    info "Project source not found locally. Attempting git clone …"
-    if [ -d "$PROJECT_DIR" ]; then
-        warn "Directory $PROJECT_DIR already exists. Removing it before cloning …"
-        rm -rf "$PROJECT_DIR"
-    fi
-    if git clone "$REPO_URL" "$PROJECT_DIR"; then
-        success "Repository cloned successfully."
-    else
-        echo ""
-        echo -e "${RED}${BOLD}✖  Could not clone the repository.${NC}" >&2
-        echo -e "${YELLOW}   This usually means you do not have access to the private GitHub repo." >&2
-        echo "" >&2
-        echo -e "   Please ask the project team to share the project as a ZIP file." >&2
-        echo -e "   Then extract it so your folder looks like this:" >&2
-        echo "" >&2
-        echo -e "     📁 Lifter-File-Viewer-setup/"  >&2
-        echo -e "       ├── install.sh          ← this script" >&2
-        echo -e "       ├── package.json" >&2
-        echo -e "       ├── src/" >&2
-        echo -e "       └── ... (other project files)" >&2
-        echo "" >&2
-        echo -e "   Then run:  bash install.sh" >&2
-        echo -e "${NC}" >&2
-        exit 1
-    fi
-fi
-
-# ============================================================
-# STEP 3 — Node.js  (use whatever is on the system)
-# ============================================================
-step "Checking Node.js"
-
-# Check Node is present at all
-if ! command -v node >/dev/null 2>&1; then
-    echo ""
-    echo -e "${RED}${BOLD}✖  Node.js is not installed.${NC}" >&2
-    echo -e "${YELLOW}   Please install it from: https://nodejs.org/en/download" >&2
-    echo -e "   Any version ≥$MIN_NODE_MAJOR works — we will use whatever you have.${NC}" >&2
+  PROJECT_DIR="$TARGET_CLONE_DIR"
+  echo "Attempting fresh git clone..."
+  if git clone "$REPO_URL" "$PROJECT_DIR"; then
+    echo "OK: repository cloned successfully."
+  else
+    echo
+    echo "ERROR: could not clone the repository."
+    echo "This usually means you do not have access to the private GitHub repo."
+    echo
+    echo "Ask the project team to share the project as a ZIP file, then extract it next to this script."
     exit 1
+  fi
+else
+  echo "OK: project source found alongside this script: $PROJECT_DIR"
 fi
 
-NODE_VERSION=$(node --version)           # e.g. v22.11.0
-NODE_MAJOR=$(echo "$NODE_VERSION" | sed 's/v//' | cut -d. -f1)
-
-# Hard stop only if the version is truly ancient
-if [ "$NODE_MAJOR" -lt "$MIN_NODE_MAJOR" ]; then
-    error "Node.js $NODE_VERSION is too old (minimum: v${MIN_NODE_MAJOR}).\n  Please upgrade: https://nodejs.org/en/download"
-fi
-
-success "Node.js found: $NODE_VERSION (system)"
-
-# ============================================================
-# STEP 4 — npm
-# ============================================================
-step "Checking npm"
-
-if ! command -v npm >/dev/null 2>&1; then
-    error "npm is not installed. It should ship with Node.js."
-fi
-
-NPM_VERSION=$(npm --version)
-NPM_MAJOR=$(echo "$NPM_VERSION" | cut -d. -f1)
-
-if [ "$NPM_MAJOR" -lt "$MIN_NPM_MAJOR" ]; then
-    warn "npm $NPM_VERSION is old (minimum v$MIN_NPM_MAJOR). Upgrading …"
-    npm install -g npm@latest 2>/dev/null || warn "Could not auto-upgrade npm. Continuing anyway."
-fi
-success "npm found: $(npm --version)"
-
-# ============================================================
-# STEP 5 — macOS-specific: Xcode Command-Line Tools
-# ============================================================
-if [ "$OS_NAME" = "macOS" ]; then
-    step "Checking Xcode Command-Line Tools (macOS)"
-    if ! xcode-select -p >/dev/null 2>&1; then
-        info "Installing Xcode Command-Line Tools (required for native modules) …"
-        xcode-select --install 2>/dev/null || true
-        echo ""
-        echo -e "${YELLOW}  A dialog box may have appeared asking you to install Xcode tools."
-        echo -e "  Please complete that installation, then re-run this script.${NC}"
-        exit 0
-    fi
-    success "Xcode Command-Line Tools are installed."
-fi
-
-# ============================================================
-# STEP 6 — Verify project structure
-# ============================================================
-step "Verifying project structure"
-
-if [ ! -f "$PROJECT_DIR/package.json" ]; then
-    error "package.json not found in $PROJECT_DIR.\n  Please run this script from the project root."
-fi
-
-APP_NAME=$(node -p "require('$PROJECT_DIR/package.json').name" 2>/dev/null || echo "lifter-file-viewer")
-APP_VERSION=$(node -p "require('$PROJECT_DIR/package.json').version" 2>/dev/null || echo "unknown")
-success "Project: $APP_NAME  v$APP_VERSION"
-
-# ============================================================
-# STEP 7a — Install npm packages (without Electron binary)
-# The Electron binary is downloaded separately in Step 7b so we
-# can apply timeouts and try multiple mirrors, avoiding the
-# 30-minute hang caused by corporate firewalls blocking GitHub.
-# ============================================================
-step "Installing npm dependencies"
-
+# Step 3: Install dependencies
+echo
+echo "--- Installing npm dependencies ---"
 cd "$PROJECT_DIR"
+echo "Running: npm install ..."
+npm install
+echo "OK: npm dependencies installed."
 
-info "Installing packages (Electron binary handled separately) …"
-ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install \
-    || error "npm install failed. Check that npm can reach registry.npmjs.org."
+# Step 4: Launch Electron dev mode only
+echo
+echo "--- Launching Electron dev mode ---"
 
-success "npm packages installed."
-
-# ============================================================
-# STEP 7b — Download Electron binary (with stall-detection)
-# ============================================================
-step "Downloading Electron binary"
-
-# Detect Electron version from the installed package
-ELECTRON_PKG="$PROJECT_DIR/node_modules/electron/package.json"
-if [ ! -f "$ELECTRON_PKG" ]; then
-    warn "electron package not found — skipping binary download."
-else
-    ELECTRON_VERSION=$(node -p "require('$ELECTRON_PKG').version" 2>/dev/null || echo "")
-    NODE_ARCH=$(node -p "process.arch" 2>/dev/null || echo "x64")
-
-    if [ "$OS_NAME" = "macOS" ]; then
-        ELECTRON_ZIP="electron-v${ELECTRON_VERSION}-darwin-${NODE_ARCH}.zip"
-    else
-        ELECTRON_ZIP="electron-v${ELECTRON_VERSION}-linux-${NODE_ARCH}.zip"
-    fi
-
-    # @electron/get cache location
-    ELECTRON_CACHE_DIR="$HOME/.cache/electron"
-    [ "$OS_NAME" = "macOS" ] && ELECTRON_CACHE_DIR="$HOME/Library/Caches/electron"
-    ELECTRON_CACHE_FILE="$ELECTRON_CACHE_DIR/$ELECTRON_ZIP"
-
-    info "Electron v${ELECTRON_VERSION} (${NODE_ARCH}) — checking cache …"
-
-    if [ -f "$ELECTRON_CACHE_FILE" ]; then
-        success "Electron binary already cached — skipping download."
-    else
-        mkdir -p "$ELECTRON_CACHE_DIR"
-
-        MIRRORS=(
-            "https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}"
-            "https://npmmirror.com/mirrors/electron/v${ELECTRON_VERSION}"
-            "https://cdn.npmmirror.com/binaries/electron/v${ELECTRON_VERSION}"
-        )
-
-        DOWNLOADED=false
-        for mirror_url in "${MIRRORS[@]}"; do
-            info "Trying: ${mirror_url}/${ELECTRON_ZIP} …"
-            # --speed-limit 1 --speed-time 15 : abort if speed drops below
-            # 1 byte/sec for 15 seconds — catches stalled downloads that
-            # established a TCP connection but then got throttled to zero.
-            if curl -fL \
-                    --connect-timeout 15 \
-                    --speed-limit 1 \
-                    --speed-time 15 \
-                    --max-time 300 \
-                    -o "$ELECTRON_CACHE_FILE" \
-                    "${mirror_url}/${ELECTRON_ZIP}" 2>/dev/null; then
-                DOWNLOADED=true
-                success "Electron binary downloaded."
-                break
-            else
-                warn "Stalled or blocked: $mirror_url — trying next …"
-                rm -f "$ELECTRON_CACHE_FILE"
-            fi
-        done
-
-        if [ "$DOWNLOADED" = false ]; then
-            echo ""
-            echo -e "${YELLOW}${BOLD}⚠  Electron binary could not be downloaded (firewall blocked).${NC}"
-            echo ""
-            echo -e "${BOLD}  ── Manual fix (do this on a machine with internet access): ──${NC}"
-            echo ""
-            echo "  1. Download this file on any machine that has internet:"
-            echo "     https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}/${ELECTRON_ZIP}"
-            echo ""
-            echo "  2. Copy it to this path on this Mac:"
-            echo "     ${ELECTRON_CACHE_FILE}"
-            echo ""
-            echo "  3. Re-run:  bash install.sh"
-            echo "     (It will find the cached file and skip the download)"
-            echo ""
-            echo -e "${YELLOW}  Continuing install — build step may also fail without the binary.${NC}"
-            echo ""
-        fi
-    fi
-
-    # Trigger electron's own install.js to place the binary from cache
-    ELECTRON_INSTALL_JS="$PROJECT_DIR/node_modules/electron/install.js"
-    if [ -f "$ELECTRON_INSTALL_JS" ] && [ -f "$ELECTRON_CACHE_FILE" ]; then
-        node "$ELECTRON_INSTALL_JS" 2>/dev/null \
-            && success "Electron binary installed from cache." \
-            || warn "Could not install Electron binary from cache — continuing."
-    fi
+PACKAGE_JSON_PATH="$PROJECT_DIR/package.json"
+if [[ ! -f "$PACKAGE_JSON_PATH" ]]; then
+  echo "ERROR: package.json not found in $PROJECT_DIR"
+  exit 1
 fi
 
+DEV_SCRIPT="$(node -e '
+const fs = require("fs");
+const packageJsonPath = process.argv[1];
+const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+const scripts = pkg.scripts || {};
+const candidates = ["electron:dev", "dev:electron", "start", "dev"];
+const found = candidates.find((name) => Object.prototype.hasOwnProperty.call(scripts, name));
+if (found) process.stdout.write(found);
+' "$PACKAGE_JSON_PATH")"
 
-
-# ============================================================
-# STEP 8 — macOS: Remove ALL security/quarantine restrictions
-# Mirrors what setup.command does, extended to the full
-# Electron.app bundle + all helper binaries.
-# ============================================================
-if [ "$OS_NAME" = "macOS" ]; then
-    step "Removing macOS security restrictions (quarantine)"
-
-    # 1. Find and fully strip quarantine from Electron.app bundle
-    ELECTRON_APP_DIR=$(find "$PROJECT_DIR/node_modules/electron" \
-        -name "*.app" -maxdepth 4 2>/dev/null | head -1 || true)
-    if [ -n "$ELECTRON_APP_DIR" ]; then
-        info "Removing quarantine from Electron.app …"
-        sudo xattr -c "$ELECTRON_APP_DIR" 2>/dev/null || \
-            xattr -c "$ELECTRON_APP_DIR" 2>/dev/null || true
-        sudo find "$ELECTRON_APP_DIR" -exec xattr -c {} + 2>/dev/null || true
-        success "Quarantine removed from Electron.app"
-    fi
-
-    # 2. Remove quarantine from the electron CLI binary in node_modules/.bin
-    ELECTRON_BIN=$(find "$PROJECT_DIR/node_modules/.bin" \
-        -name "electron" 2>/dev/null | head -1 || true)
-    if [ -n "$ELECTRON_BIN" ]; then
-        xattr -d com.apple.quarantine "$ELECTRON_BIN" 2>/dev/null || true
-        success "Quarantine removed from electron CLI binary."
-    fi
-
-    # 3. Sweep the entire node_modules/electron directory
-    #    (catches crashpad, Electron Helper EH/NP, etc.)
-    if [ -d "$PROJECT_DIR/node_modules/electron" ]; then
-        find "$PROJECT_DIR/node_modules/electron" \
-            -exec xattr -d com.apple.quarantine {} + 2>/dev/null || true
-        success "Quarantine removed from all Electron helper binaries."
-    fi
+if [[ -z "$DEV_SCRIPT" ]]; then
+  echo "ERROR: no Electron dev script found. Expected one of: electron:dev, dev:electron, start, dev"
+  exit 1
 fi
 
-# ============================================================
-# STEP 9 — Verify key binaries are accessible
-# ============================================================
-step "Verifying installed binaries"
+echo "OK: using npm script: $DEV_SCRIPT"
+echo "Running: npm run $DEV_SCRIPT"
+echo "Press Ctrl+C to stop the development app."
 
-check_bin() {
-    local name="$1"
-    local path="$PROJECT_DIR/node_modules/.bin/$name"
-    if [ -f "$path" ]; then
-        success "$name binary found."
-    else
-        warn "$name binary not found in node_modules/.bin. Some features may not work."
-    fi
-}
-
-check_bin "electron"
-check_bin "vite"
-check_bin "tsc"
-check_bin "concurrently"
-
-# ============================================================
-# STEP 10 — Update shell PATH in all detected shell configs
-# Detects bash / zsh / fish configs and injects the project's
-# node_modules/.bin into PATH — same pattern as the sample.
-# ============================================================
-step "Updating shell configurations"
-
-SHELLS_CONFIGURED=""
-SHELLS_ALREADY_CONFIGURED=""
-CREATED_SHELL_PATHS=""
-
-while IFS='|' read -r shell_name config_file; do
-    [ -z "$shell_name" ] && continue
-
-    # Build the shell-appropriate PATH export line
-    if [ "$shell_name" = "fish" ]; then
-        path_cmd="set -gx PATH \"$PROJECT_DIR/node_modules/.bin\" \$PATH"
-        # Create fish config directory if it doesn't exist
-        config_dir="$(dirname "$config_file")"
-        if [ ! -d "$config_dir" ]; then
-            mkdir -p "$config_dir"
-            CREATED_SHELL_PATHS="${CREATED_SHELL_PATHS}${config_dir}\n"
-        fi
-    else
-        path_cmd="export PATH=\"$PROJECT_DIR/node_modules/.bin:\$PATH\""
-    fi
-
-    # Create config file if it doesn't exist yet
-    if [ ! -f "$config_file" ]; then
-        CREATED_SHELL_PATHS="${CREATED_SHELL_PATHS}${config_file}\n"
-    fi
-
-    # ── Guard: skip if we cannot write to this config file ──
-    if ! touch "$config_file" 2>/dev/null; then
-        warn "No write permission for $config_file — skipping (MDM/corporate restriction)"
-        continue
-    fi
-
-    # Append only if not already present
-    if ! grep -qsF "$PROJECT_DIR/node_modules/.bin" "$config_file"; then
-        if {
-            echo ""
-            echo "# Added by Lifter-File-Viewer installer on $(date)"
-            echo "$path_cmd"
-        } >> "$config_file" 2>/dev/null; then
-            SHELLS_CONFIGURED="${SHELLS_CONFIGURED}${shell_name}|${config_file}\n"
-        else
-            warn "Could not write to $config_file — skipping (MDM/corporate restriction)"
-        fi
-    else
-        SHELLS_ALREADY_CONFIGURED="${SHELLS_ALREADY_CONFIGURED}${shell_name}|${config_file}\n"
-    fi
-done <<< "$(detect_all_shells)"
-
-# Report newly configured shells
-if [ -n "$SHELLS_CONFIGURED" ]; then
-    echo ""
-    echo "Updated shell configurations:"
-    printf '%b' "$SHELLS_CONFIGURED" | while IFS='|' read -r shell_name config_file; do
-        [ -z "$shell_name" ] && continue
-        success "  ✓ $config_file"
-    done
-    echo ""
-    echo "To apply changes to your current terminal session:"
-    printf '%b' "$SHELLS_CONFIGURED" | while IFS='|' read -r shell_name config_file; do
-        [ -z "$shell_name" ] && continue
-        echo "  - source $config_file"
-    done
-fi
-
-# Report shells already configured
-if [ -n "$SHELLS_ALREADY_CONFIGURED" ]; then
-    echo ""
-    echo "Already configured (no changes needed):"
-    printf '%b' "$SHELLS_ALREADY_CONFIGURED" | while IFS='|' read -r shell_name config_file; do
-        [ -z "$shell_name" ] && continue
-        echo "  ✓ $config_file"
-    done
-fi
-
-# Fallback: no shell config found at all
-if [ -z "$SHELLS_CONFIGURED" ] && [ -z "$SHELLS_ALREADY_CONFIGURED" ]; then
-    echo ""
-    warn "Could not detect any shell config files."
-    echo "  Please add this line to your shell config manually and restart:"
-    echo "  export PATH=\"$PROJECT_DIR/node_modules/.bin:\$PATH\""
-fi
-
-# ============================================================
-# STEP 11 — Fix file ownership when running as root/MDM
-# (e.g. JAMF deploys as root for another user)
-# ============================================================
-if [ "$(id -u)" = "0" ] && [ -n "$INSTALL_USER" ]; then
-    step "Fixing file ownership (running as root for user: $INSTALL_USER)"
-    chown -R "$INSTALL_USER" "$PROJECT_DIR" 2>/dev/null || true
-    if [ -n "$CREATED_SHELL_PATHS" ]; then
-        printf '%b' "$CREATED_SHELL_PATHS" | while IFS= read -r created_path; do
-            [ -z "$created_path" ] && continue
-            chown "$INSTALL_USER" "$created_path" 2>/dev/null || true
-        done
-    fi
-    success "File ownership corrected."
-fi
-
-# ============================================================
-# STEP 12 — Build the distributable application
-# Runs: npm run dist → creates the real installable app
-#   macOS : dist_electron/Lifter-File-Viewer-<version>.dmg
-#   Linux : dist_electron/Lifter-File-Viewer-<version>.AppImage
-# ============================================================
-step "Building the application"
-
-info "Running: npm run dist (this may take a few minutes) …"
-export NODE_TLS_REJECT_UNAUTHORIZED=0
-npm run dist || error "Build failed. Check the output above for details."
-
-success "Application built successfully."
-
-# ============================================================
-# STEP 13 — Install the built app onto this system
-# ============================================================
-step "Installing the application"
-
-APP_INSTALL_NAME="Lifter-File-Viewer"
-DIST_DIR="$PROJECT_DIR/dist_electron"
-
-if [ "$OS_NAME" = "macOS" ]; then
-    # ── Find the generated .dmg ───────────────────────────────
-    DMG_FILE=$(find "$DIST_DIR" -name "*.dmg" -maxdepth 2 2>/dev/null | head -1 || true)
-
-    if [ -z "$DMG_FILE" ]; then
-        error "No .dmg found in $DIST_DIR. Build may have failed silently."
-    fi
-    info "Found installer: $DMG_FILE"
-
-    # ── Mount the DMG ─────────────────────────────────────────
-    info "Mounting DMG …"
-    MOUNT_POINT=$(mktemp -d)
-    hdiutil attach "$DMG_FILE" -mountpoint "$MOUNT_POINT" -nobrowse -quiet \
-        || error "Failed to mount $DMG_FILE"
-
-    # ── Copy .app to /Applications ────────────────────────────
-    FOUND_APP=$(find "$MOUNT_POINT" -name "*.app" -maxdepth 2 2>/dev/null | head -1 || true)
-    if [ -z "$FOUND_APP" ]; then
-        hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
-        error "No .app found inside the DMG."
-    fi
-
-    INSTALL_PATH="/Applications/$(basename "$FOUND_APP")"
-    USER_INSTALL_PATH="$HOME/Applications/$(basename "$FOUND_APP")"
-    INSTALLED_TO=""
-
-    # ── Try /Applications (needs admin). Fall back to ~/Applications. ──
-    if sudo cp -R "$FOUND_APP" "/Applications/" 2>/dev/null \
-            || cp -R "$FOUND_APP" "/Applications/" 2>/dev/null; then
-        INSTALLED_TO="$INSTALL_PATH"
-        success "App installed to /Applications."
-    else
-        warn "No admin rights — installing to ~/Applications instead (no password needed)."
-        mkdir -p "$HOME/Applications"
-        [ -d "$USER_INSTALL_PATH" ] && rm -rf "$USER_INSTALL_PATH"
-        cp -R "$FOUND_APP" "$HOME/Applications/" \
-            || error "Failed to install app. Please contact your IT team."
-        INSTALLED_TO="$USER_INSTALL_PATH"
-        success "App installed to $USER_INSTALL_PATH"
-    fi
-
-    # ── Unmount the DMG ───────────────────────────────────────
-    hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
-    rm -rf "$MOUNT_POINT" 2>/dev/null || true
-
-    # ── Remove quarantine from the installed .app ─────────────
-    info "Removing macOS quarantine from installed app …"
-    sudo xattr -c "$INSTALLED_TO" 2>/dev/null || \
-        xattr -c "$INSTALLED_TO" 2>/dev/null || true
-    sudo find "$INSTALLED_TO" -exec xattr -c {} + 2>/dev/null \
-        || find "$INSTALLED_TO" -exec xattr -c {} + 2>/dev/null || true
-    success "Security restrictions removed."
-
-    success "✅  Lifter-File-Viewer installed successfully!"
-
-    # ── Launch the installed app ──────────────────────────────
-    info "Launching Lifter-File-Viewer …"
-    open "$INSTALLED_TO"
-
-elif [ "$OS_NAME" = "Linux" ]; then
-    # ── Find the generated AppImage ───────────────────────────
-    APPIMAGE=$(find "$DIST_DIR" -name "*.AppImage" -maxdepth 2 2>/dev/null | head -1 || true)
-
-    if [ -z "$APPIMAGE" ]; then
-        error "No .AppImage found in $DIST_DIR. Build may have failed silently."
-    fi
-    info "Found installer: $APPIMAGE"
-
-    # Copy AppImage to ~/Applications and make it executable
-    mkdir -p "$HOME/Applications"
-    DEST="$HOME/Applications/Lifter-File-Viewer.AppImage"
-    cp "$APPIMAGE" "$DEST"
-    chmod +x "$DEST"
-    success "AppImage installed to $DEST"
-
-    # Create a desktop shortcut
-    DESKTOP_FILE="$HOME/.local/share/applications/lifter-file-viewer.desktop"
-    mkdir -p "$(dirname "$DESKTOP_FILE")"
-    cat > "$DESKTOP_FILE" <<EOF
-[Desktop Entry]
-Name=Lifter-File-Viewer
-Exec=$DEST
-Icon=$PROJECT_DIR/build/icon.png
-Type=Application
-Categories=Utility;
-EOF
-    success "Desktop shortcut created."
-
-    # Launch
-    info "Launching Lifter-File-Viewer …"
-    nohup "$DEST" >/dev/null 2>&1 &
-    success "✅  Lifter-File-Viewer launched!"
-fi
-
-# ============================================================
-# STEP 14 — Done
-# ============================================================
-step "Installation Complete 🎉"
-
-echo ""
-echo -e "${GREEN}${BOLD}  Lifter-File-Viewer has been installed and launched!${NC}"
-echo ""
-if [ "$OS_NAME" = "macOS" ]; then
-    echo -e "  ${BOLD}Find it in:${NC}  /Applications/Lifter-File-Viewer.app"
-    echo -e "  ${BOLD}Open it anytime via:${NC}  Spotlight (⌘ Space) → Lifter-File-Viewer"
-else
-    echo -e "  ${BOLD}Find it in:${NC}  ~/Applications/Lifter-File-Viewer.AppImage"
-fi
-echo ""
-echo -e "${YELLOW}Close and reopen your terminal to apply any PATH changes.${NC}"
-echo ""
+npm run "$DEV_SCRIPT"
