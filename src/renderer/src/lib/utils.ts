@@ -101,6 +101,7 @@ export const determineChartType = (fileName: string, content: string): string | 
     if (lowerName.includes("api-report")) return "API-report";
     if (lowerName.includes("program_flow")) return "program_flow";
     if (lowerName.includes("capability") || lowerName.includes("taxonomy") || lowerName.includes("l1_l2_l3")) return "capability_model";
+    if (lowerName.includes("cross_source_links") || lowerName.includes("cross_repo")) return "cross_repo";
 
     try {
       const data = JSON.parse(content);

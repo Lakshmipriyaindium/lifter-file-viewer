@@ -21,6 +21,7 @@ import CodebaseAnalyzer from './components/project-analysis/CodebaseAnalyzer';
 import { ApiAnalysisVisualization } from './components/dotnet-api/DotNetAPIVisualizer';
 import HierarchicalFeatureAnalysis from './components/feature-analysis/hierachy-feature';
 import CapabilityModelViewer from './components/feature-analysis/CapabilityModelViewer';
+import CrossRepoVisualizer from './components/cross-repo/CrossRepoVisualizer';
 
 // ──────────────────────────────────────────────
 // Error Boundary – catches render-time crashes
@@ -133,7 +134,7 @@ function App() {
   const [rawText, setRawText] = useState<string>('');
   const [error, setError] = useState('');
   const [mode, setMode] = useState<
-    'mermaid' | 'plantuml' | 'total_analysis' | 'business_rules' | 'd3_graph' | 'd3_graph_v2' | 'client_customizations' | 'customizations_by_node' | 'kg' | 'user_stories' | 'business_process_flow' | 'consolidated_analysis' | 'legacy_consolidated_analysis' | 'consolidated_business_reports' | 'business_terms' | 'module_analysis' | 'consolidated_project_inventory' | 'project_analysis_result' | 'API-report' | 'capability_model' | null
+    'mermaid' | 'plantuml' | 'total_analysis' | 'business_rules' | 'd3_graph' | 'd3_graph_v2' | 'client_customizations' | 'customizations_by_node' | 'kg' | 'user_stories' | 'business_process_flow' | 'consolidated_analysis' | 'legacy_consolidated_analysis' | 'consolidated_business_reports' | 'business_terms' | 'module_analysis' | 'consolidated_project_inventory' | 'project_analysis_result' | 'API-report' | 'capability_model' | 'cross_repo' | null
   >(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, selectedMode: string) => {
@@ -170,7 +171,7 @@ function App() {
         );
       }
 
-      const jsonModes = ['total_analysis', 'hierarchical_features', 'business_rules', 'd3_graph', 'd3_graph_v2', 'client_customizations', 'customizations_by_node', 'kg', 'user_stories', 'business_process_flow', 'consolidated_analysis', 'consolidated_business_reports', 'business_terms', 'module_analysis', 'consolidated_project_inventory', 'project_analysis_result', 'API-report', 'capability_model'];
+      const jsonModes = ['total_analysis', 'hierarchical_features', 'business_rules', 'd3_graph', 'd3_graph_v2', 'client_customizations', 'customizations_by_node', 'kg', 'user_stories', 'business_process_flow', 'consolidated_analysis', 'consolidated_business_reports', 'business_terms', 'module_analysis', 'consolidated_project_inventory', 'project_analysis_result', 'API-report', 'capability_model', 'cross_repo'];
       if (jsonModes.includes(actualMode)) {
         const parsedData = JSON.parse(text); // throws if invalid JSON
         setData(parsedData);
@@ -447,6 +448,17 @@ function App() {
     );
   }
 
+  if (mode === 'cross_repo' && data) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50">
+        <ViewerHeader onBack={resetApp} />
+        <ErrorBoundary onReset={resetApp}>
+          <CrossRepoVisualizer data={data} />
+        </ErrorBoundary>
+      </div>
+    );
+  }
+
   if (mode === 'plantuml' && rawText) {
     return (
       <div className="w-full min-h-screen bg-gray-50">
@@ -625,7 +637,7 @@ function App() {
           <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
             <div className="p-8 flex-grow flex flex-col items-center">
               <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🕸️</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Flow Graph V2</h2>
+              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Call Graph</h2>
               <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Explore interactive call graphs from graph data files (_d3_v2 or call_graph).</p>
               <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
                 Select JSON File
@@ -708,6 +720,19 @@ function App() {
               <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
                 Select JSON File
                 <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'customizations_by_node')} className="hidden" />
+              </label>
+            </div>
+          </div>
+
+          {/* Cross-Repo Connections Card */}
+          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
+            <div className="p-8 flex-grow flex flex-col items-center">
+              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🔗</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Cross-Repo Connections</h2>
+              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Visualize API and integration dependencies across multiple repositories.</p>
+              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
+                Select JSON File
+                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'cross_repo')} className="hidden" />
               </label>
             </div>
           </div>

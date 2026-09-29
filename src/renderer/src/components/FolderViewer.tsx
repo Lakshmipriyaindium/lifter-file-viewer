@@ -24,6 +24,7 @@ import { ApiAnalysisVisualization } from './dotnet-api/DotNetAPIVisualizer';
 import ProgramFlowView from './program-flow/ProgramFlowView';
 import HierarchicalFeatureAnalysis from './feature-analysis/hierachy-feature';
 import CapabilityModelViewer from './feature-analysis/CapabilityModelViewer';
+import CrossRepoVisualizer from './cross-repo/CrossRepoVisualizer';
 
 interface ChartEBProps {
   onOpenInEditor: () => void;
@@ -337,6 +338,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       if (mode === 'API-report') return <ApiAnalysisVisualization data={data} />;
       if (mode === 'program_flow') return <ProgramFlowView data={data} />;
       if (mode === 'capability_model') return <CapabilityModelViewer data={data} />;
+      if (mode === 'cross_repo') return <CrossRepoVisualizer data={data} />;
       
       return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8 text-center">
