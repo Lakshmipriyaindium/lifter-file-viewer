@@ -97,7 +97,7 @@ export const determineChartType = (fileName: string, content: string): string | 
     if (lowerName.includes("component-distribution")) return "component_distribution";
     if (lowerName.includes("cyclonedx-sbom")) return "sbom";
     if (lowerName.includes("security-report")) return "security";
-    if (lowerName.includes("module_analysis")) return "module_analysis";
+    if (lowerName.includes("module_analysis")) return "legacy_consolidated_analysis";
     if (lowerName.includes("api-report")) return "API-report";
     if (lowerName.includes("program_flow")) return "program_flow";
     if (lowerName.includes("capability") || lowerName.includes("taxonomy") || lowerName.includes("l1_l2_l3")) return "capability_model";

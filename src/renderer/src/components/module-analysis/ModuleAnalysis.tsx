@@ -95,21 +95,116 @@ const countTotalFeaturesInProject = (project: Project): number => {
 };
 
 const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => {
-  const data = useMemo(() => ({
-    consolidation_date: rawData?.consolidation_date || new Date().toISOString(),
-    source_directory: rawData?.source_directory || '',
-    total_projects: rawData?.total_projects || 0,
-    projects: rawData?.projects || [],
-    statistics: rawData?.statistics || {
-      total_projects_analyzed: 0,
-      projects_with_errors: 0,
-      projects_successfully_analyzed: 0,
-      technology_analysis: { unique_technologies: 0, total_technology_references: 0, top_technologies: {}, projects_by_technology_count: {} },
-      business_domain_analysis: { unique_l1_domains: 0, total_l1_references: 0, top_l1_domains: {}, average_domains_per_project: 0 },
-      feature_analysis: { unique_l2_features: 0, total_l2_references: 0, top_l2_features: {}, average_features_per_project: 0 },
-      component_analysis: { unique_l3_components: 0, total_l3_references: 0, top_l3_components: {}, average_components_per_project: 0 }
+  const data = useMemo(() => {
+    // Check if it's the legacy tb_module_analysis.json format
+    if (rawData?.domains && rawData?.business_features_l1) {
+      const domainsData = rawData.business_features_l1;
+      
+      const mappedDomains: L1Domain[] = Object.entries(domainsData).map(([domainName, featuresObj]: [string, any]) => {
+        const featuresList: L2Feature[] = Object.entries(featuresObj).map(([featureName, featureData]: [string, any]) => {
+          const files = featureData.files || [];
+          
+          const l3Components: L3Component[] = files.map((f: any) => ({
+            l3_component: f.filename || f.name || "Unknown File",
+            l3_description: f.relative_path || f.path || "Unknown Path",
+            related_files: [f.filename || f.name || f]
+          }));
+          
+          return {
+            l2_feature: featureName,
+            l2_description: "",
+            l3_components: l3Components.length > 0 ? l3Components : [
+              { l3_component: featureName + " Component", l3_description: "Auto-generated", related_files: [] }
+            ]
+          };
+        });
+        
+        return {
+          l1_domain: domainName,
+          l1_description: `Domain containing ${featuresList.length} features`,
+          l2_features: featuresList
+        };
+      });
+
+      const domainCount = mappedDomains.length;
+      let featureCount = 0;
+      let fileCount = 0;
+      const topDomains: Record<string, number> = {};
+      const topFeatures: Record<string, number> = {};
+      
+      mappedDomains.forEach(d => {
+        featureCount += d.l2_features.length;
+        topDomains[d.l1_domain] = d.l2_features.length;
+        d.l2_features.forEach(f => {
+          topFeatures[f.l2_feature] = f.l3_components.length;
+          fileCount += f.l3_components.reduce((sum, c) => sum + (c.related_files.length || 1), 0);
+        });
+      });
+
+      if (rawData.summary?.total_files) {
+         fileCount = rawData.summary.total_files;
+      }
+      
+      const singleProject: Project = {
+        project_name: "Legacy Codebase Analysis",
+        analysis_date: rawData.consolidation_date || new Date().toISOString(),
+        technology_stack: ["COBOL", "JCL", "Legacy"],
+        business_features: mappedDomains
+      };
+      
+      return {
+        consolidation_date: rawData.consolidation_date || new Date().toISOString(),
+        source_directory: "legacy_analysis_root",
+        total_projects: 1,
+        projects: [singleProject],
+        statistics: {
+          total_projects_analyzed: 1,
+          projects_with_errors: 0,
+          projects_successfully_analyzed: 1,
+          technology_analysis: { 
+            unique_technologies: 3, 
+            total_technology_references: 3, 
+            top_technologies: { "COBOL": 1, "JCL": 1, "Legacy": 1 }, 
+            projects_by_technology_count: { "3": 1 } 
+          },
+          business_domain_analysis: { 
+            unique_l1_domains: domainCount, 
+            total_l1_references: domainCount, 
+            top_l1_domains: topDomains, 
+            average_domains_per_project: domainCount 
+          },
+          feature_analysis: { 
+            unique_l2_features: featureCount, 
+            total_l2_references: featureCount, 
+            top_l2_features: topFeatures, 
+            average_features_per_project: featureCount 
+          },
+          component_analysis: { 
+            unique_l3_components: fileCount, 
+            total_l3_references: fileCount, 
+            top_l3_components: { "Legacy Files": fileCount }, 
+            average_components_per_project: fileCount 
+          }
+        }
+      };
     }
-  }), [rawData]);
+
+    return {
+      consolidation_date: rawData?.consolidation_date || new Date().toISOString(),
+      source_directory: rawData?.source_directory || '',
+      total_projects: rawData?.total_projects || 0,
+      projects: rawData?.projects || [],
+      statistics: rawData?.statistics || {
+        total_projects_analyzed: 0,
+        projects_with_errors: 0,
+        projects_successfully_analyzed: 0,
+        technology_analysis: { unique_technologies: 0, total_technology_references: 0, top_technologies: {}, projects_by_technology_count: {} },
+        business_domain_analysis: { unique_l1_domains: 0, total_l1_references: 0, top_l1_domains: {}, average_domains_per_project: 0 },
+        feature_analysis: { unique_l2_features: 0, total_l2_references: 0, top_l2_features: {}, average_features_per_project: 0 },
+        component_analysis: { unique_l3_components: 0, total_l3_references: 0, top_l3_components: {}, average_components_per_project: 0 }
+      }
+    };
+  }, [rawData]);
   const [activeTab, setActiveTab] = useState<'overview' | 'technologies' | 'domains' | 'features' | 'projects'>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -122,24 +217,24 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
     return Object.entries(data.statistics.technology_analysis.top_technologies)
       .slice(0, 15)
       .map(([name, count]) => ({ name, count }));
-  }, []);
+  }, [data]);
 
   const domainData = useMemo(() => {
     return Object.entries(data.statistics.business_domain_analysis.top_l1_domains)
       .slice(0, 10)
       .map(([name, count]) => ({ name, count }));
-  }, []);
+  }, [data]);
 
   const featureData = useMemo(() => {
     return Object.entries(data.statistics.feature_analysis.top_l2_features)
       .slice(0, 10)
       .map(([name, count]) => ({ name, count }));
-  }, []);
+  }, [data]);
 
   const projectComplexityData = useMemo(() => {
     return Object.entries(data.statistics.technology_analysis.projects_by_technology_count)
       .map(([range, count]) => ({ range, count }));
-  }, []);
+  }, [data]);
 
   const filteredProjects = useMemo(() => {
     return data.projects.filter(project =>
