@@ -25,6 +25,9 @@ import ProgramFlowView from './program-flow/ProgramFlowView';
 import HierarchicalFeatureAnalysis from './feature-analysis/hierachy-feature';
 import CapabilityModelViewer from './feature-analysis/CapabilityModelViewer';
 import CrossRepoVisualizer from './cross-repo/CrossRepoVisualizer';
+import FocusedAnalysis from './feature-analysis/FocusedAnalysis';
+import BusinessMetricsAnalysis from './business-metrics/BusinessMetricsAnalysis';
+import ConsolidatedBusinessReport from './consolidated-business/ConsolidatedBusinessReport';
 
 interface ChartEBProps {
   onOpenInEditor: () => void;
@@ -230,6 +233,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       toggleFolder(file.path);
     } else {
       setSelectedFile(file);
+      setFileContent('');
       setIsTruncated(false);
       setIsTooLarge(false);
       setFileSizeStr('');
@@ -339,6 +343,9 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       if (mode === 'program_flow') return <ProgramFlowView data={data} />;
       if (mode === 'capability_model') return <CapabilityModelViewer data={data} />;
       if (mode === 'cross_repo') return <CrossRepoVisualizer data={data} />;
+      if (mode === 'focused_analysis') return <FocusedAnalysis data={data} />;
+      if (mode === 'business_metrics') return <BusinessMetricsAnalysis data={data} />;
+      if (mode === 'consolidated_business_reports') return <ConsolidatedBusinessReport data={data} />;
       
       return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8 text-center">
@@ -518,7 +525,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
               )}
               {activeTab === 'chart' && (
                 <div className="h-full w-full bg-white overflow-auto">
-                  <ChartErrorBoundary onOpenInEditor={() => setActiveTab('editor')}>
+                  <ChartErrorBoundary key={selectedFile.path} onOpenInEditor={() => setActiveTab('editor')}>
                     {renderChart()}
                   </ChartErrorBoundary>
                 </div>

@@ -78,7 +78,38 @@ export interface ModuleAnalysisProps {
 const BRAND_COLOR = '#fb851e';
 const COLORS = ['#fb851e', '#ff6b35', '#f7931e', '#ffa500', '#ffb347', '#ffc04d', '#ffd27f'];
 
-const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
+// Helper functions for aggregating feature and component metrics
+const countL3ComponentsInDomain = (domain: L1Domain): number => {
+  if (!domain.l2_features) return 0;
+  return domain.l2_features.reduce((sum, f) => sum + (f.l3_components?.length || 0), 0);
+};
+
+const countTotalComponentsInProject = (project: Project): number => {
+  if (!project.business_features) return 0;
+  return project.business_features.reduce((sum, d) => sum + countL3ComponentsInDomain(d), 0);
+};
+
+const countTotalFeaturesInProject = (project: Project): number => {
+  if (!project.business_features) return 0;
+  return project.business_features.reduce((sum, d) => sum + (d.l2_features?.length || 0), 0);
+};
+
+const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => {
+  const data = useMemo(() => ({
+    consolidation_date: rawData?.consolidation_date || new Date().toISOString(),
+    source_directory: rawData?.source_directory || '',
+    total_projects: rawData?.total_projects || 0,
+    projects: rawData?.projects || [],
+    statistics: rawData?.statistics || {
+      total_projects_analyzed: 0,
+      projects_with_errors: 0,
+      projects_successfully_analyzed: 0,
+      technology_analysis: { unique_technologies: 0, total_technology_references: 0, top_technologies: {}, projects_by_technology_count: {} },
+      business_domain_analysis: { unique_l1_domains: 0, total_l1_references: 0, top_l1_domains: {}, average_domains_per_project: 0 },
+      feature_analysis: { unique_l2_features: 0, total_l2_references: 0, top_l2_features: {}, average_features_per_project: 0 },
+      component_analysis: { unique_l3_components: 0, total_l3_references: 0, top_l3_components: {}, average_components_per_project: 0 }
+    }
+  }), [rawData]);
   const [activeTab, setActiveTab] = useState<'overview' | 'technologies' | 'domains' | 'features' | 'projects'>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -91,31 +122,31 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
     return Object.entries(data.statistics.technology_analysis.top_technologies)
       .slice(0, 15)
       .map(([name, count]) => ({ name, count }));
-  }, [data.statistics.technology_analysis.top_technologies]);
+  }, []);
 
   const domainData = useMemo(() => {
     return Object.entries(data.statistics.business_domain_analysis.top_l1_domains)
       .slice(0, 10)
       .map(([name, count]) => ({ name, count }));
-  }, [data.statistics.business_domain_analysis.top_l1_domains]);
+  }, []);
 
   const featureData = useMemo(() => {
     return Object.entries(data.statistics.feature_analysis.top_l2_features)
       .slice(0, 10)
       .map(([name, count]) => ({ name, count }));
-  }, [data.statistics.feature_analysis.top_l2_features]);
+  }, []);
 
   const projectComplexityData = useMemo(() => {
     return Object.entries(data.statistics.technology_analysis.projects_by_technology_count)
       .map(([range, count]) => ({ range, count }));
-  }, [data.statistics.technology_analysis.projects_by_technology_count]);
+  }, []);
 
   const filteredProjects = useMemo(() => {
     return data.projects.filter(project =>
       project.project_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.technology_stack.some(tech => tech.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-  }, [data.projects, searchTerm]);
+  }, [searchTerm]);
 
   // Flatten business features for grid view
   const businessFeaturesGrid = useMemo(() => {
@@ -146,7 +177,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
     }
 
     return features;
-  }, [data.projects]);
+  }, []);
 
   // Get unique L1 domains for filter
   const uniqueL1Domains = useMemo(() => {
@@ -188,9 +219,9 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
       project.project_name,
       project.analysis_date,
       project.technology_stack.join('; '),
-      project.business_features.length,
-      project.business_features.reduce((sum, d) => sum + d.l2_features.length, 0),
-      project.business_features.reduce((sum, d) => sum + d.l2_features.reduce((s, f) => s + (f.l3_components?.length || 0), 0), 0)
+      project.business_features ? project.business_features.length : 0,
+      countTotalFeaturesInProject(project),
+      countTotalComponentsInProject(project)
     ]);
 
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -323,7 +354,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LIFTR.ai Consolidated Module Analysis</title>
+  <title>LIFTER.ai Consolidated Module Analysis</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -465,7 +496,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
           h('div', { className: 'bg-white rounded-xl shadow-lg p-6 mb-6' },
             h('div', { className: 'flex items-center justify-between mb-4' },
               h('div', { className: 'flex-1' },
-                h('h1', { className: 'text-3xl font-bold text-gray-900 mb-2' }, 'LIFTR.ai Consolidated Module Analysis'),
+                h('h1', { className: 'text-3xl font-bold text-gray-900 mb-2' }, 'LIFTER.ai Consolidated Module Analysis'),
                 h('p', { className: 'text-gray-600' }, 'Legacy System Analysis Dashboard • ' + DATA.total_projects + ' Projects Analyzed'),
                 h('p', { className: 'text-sm text-gray-500 mt-1' }, 'Generated: ' + new Date(DATA.consolidation_date).toLocaleString())
               ),
@@ -473,14 +504,31 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
                 h('button', {
                   onClick: () => {
                     const headers = ['Project Name', 'Analysis Date', 'Technologies', 'Domains', 'Features', 'Components'];
-                    const rows = DATA.projects.map(project => [
-                      project.project_name,
-                      project.analysis_date,
-                      project.technology_stack.join('; '),
-                      project.business_features.length,
-                      project.business_features.reduce((sum, d) => sum + d.l2_features.length, 0),
-                      project.business_features.reduce((sum, d) => sum + d.l2_features.reduce((s, f) => s + (f.l3_components?.length || 0), 0), 0)
-                    ]);
+                    const rows = DATA.projects.map(project => {
+                      const domainCount = project.business_features ? project.business_features.length : 0;
+                      let featureCount = 0;
+                      let componentCount = 0;
+                      if (project.business_features) {
+                        for (const domain of project.business_features) {
+                          if (domain.l2_features) {
+                            featureCount += domain.l2_features.length;
+                            for (const feature of domain.l2_features) {
+                              if (feature.l3_components) {
+                                componentCount += feature.l3_components.length;
+                              }
+                            }
+                          }
+                        }
+                      }
+                      return [
+                        project.project_name,
+                        project.analysis_date,
+                        project.technology_stack.join('; '),
+                        domainCount,
+                        featureCount,
+                        componentCount
+                      ];
+                    });
                     const csv = [headers, ...rows].map(row => row.join(',')).join('\\n');
                     const blob = new Blob([csv], { type: 'text/csv' });
                     const url = URL.createObjectURL(blob);
@@ -493,7 +541,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
                 }, icons.Download(), h('span', null, 'CSV')),
                 h('button', {
                   onClick: () => {
-                    let md = '# LIFTR.ai Consolidated Module Analysis Report\\n\\n';
+                    let md = '# LIFTER.ai Consolidated Module Analysis Report\\n\\n';
                     md += '**Generated:** ' + DATA.consolidation_date + '\\n\\n';
                     md += '**Total Projects:** ' + DATA.total_projects + '\\n\\n';
                     const blob = new Blob([md], { type: 'text/markdown' });
@@ -609,26 +657,23 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
               h('div', { className: 'bg-white rounded-xl shadow-lg p-6' },
                 h('h3', { className: 'text-lg font-semibold mb-4 text-gray-900' }, 'Most Common Features'),
                 h('div', { className: 'space-y-3' },
-                  (() => {
-                    const maxFeatureCount = featureData[0]?.count || 1;
-                    return featureData.slice(0, 8).map((feature, idx) =>
-                      h('div', { key: idx, className: 'flex items-center justify-between' },
-                        h('span', { className: 'text-sm text-gray-700 flex-1' }, feature.name),
-                        h('div', { className: 'flex items-center gap-2 w-32' },
-                          h('div', { className: 'flex-1 bg-gray-200 rounded-full h-2' },
-                            h('div', {
-                              className: 'h-2 rounded-full',
-                              style: {
-                                backgroundColor: BRAND_COLOR,
-                                width: ((feature.count / maxFeatureCount) * 100) + '%'
-                              }
-                            })
-                          ),
-                          h('span', { className: 'text-xs font-medium text-gray-600 w-8 text-right' }, feature.count)
-                        )
+                  featureData.slice(0, 8).map((feature, idx) =>
+                    h('div', { key: idx, className: 'flex items-center justify-between' },
+                      h('span', { className: 'text-sm text-gray-700 flex-1' }, feature.name),
+                      h('div', { className: 'flex items-center gap-2 w-32' },
+                        h('div', { className: 'flex-1 bg-gray-200 rounded-full h-2' },
+                          h('div', {
+                            className: 'h-2 rounded-full',
+                            style: {
+                              backgroundColor: BRAND_COLOR,
+                              width: ((feature.count / featureData[0].count) * 100) + '%'
+                            }
+                          })
+                        ),
+                        h('span', { className: 'text-xs font-medium text-gray-600 w-8 text-right' }, feature.count)
                       )
-                    );
-                  })()
+                    )
+                  )
                 )
               )
             )
@@ -883,7 +928,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
             h('div', { className: 'flex justify-end items-center gap-3' },
               LOGO_BASE64 && h('img', {
                 src: LOGO_BASE64,
-                alt: 'LIFTR.ai Logo',
+                alt: 'LIFTER.ai Logo',
                 className: 'h-6 w-auto object-contain',
                 style: { maxHeight: '36px' }
               }),
@@ -911,12 +956,20 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       <div className="max-w-9xl mx-auto">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex-1">
+              <div className="mb-2">
+                <img
+                  src="/assets/logo-light.png"
+                  alt="LIFTER.ai Logo"
+                  className="h-6 w-auto object-contain"
+                  style={{ maxHeight: '36px' }}
+                />
+              </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 The Lifter Consolidated Module Analysis
               </h1>
@@ -928,6 +981,13 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
               </p>
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={exportToCSV}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <Download size={18} />
+                <span>CSV</span>
+              </button>
               <button
                 onClick={exportToMarkdown}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-white"
@@ -1068,7 +1128,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ range, percent }: any) => `${range}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ range, percent }) => `${range}: ${(percent * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="count"
@@ -1089,28 +1149,25 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data }) => {
               <div className="bg-white rounded-xl shadow-lg p-6">
                 <h3 className="text-lg font-semibold mb-4 text-gray-900">Most Common Features</h3>
                 <div className="space-y-3">
-                  {(() => {
-                    const maxFeatureCount = featureData[0]?.count || 1;
-                    return featureData.slice(0, 8).map((feature, idx) => (
-                      <div key={`feature-${idx}-${feature.name}`} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700 flex-1">{feature.name}</span>
-                        <div className="flex items-center gap-2 w-32">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="h-2 rounded-full"
-                              style={{
-                                backgroundColor: BRAND_COLOR,
-                                width: `${(feature.count / maxFeatureCount) * 100}%`
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs font-medium text-gray-600 w-8 text-right">
-                            {feature.count}
-                          </span>
+                  {featureData.slice(0, 8).map((feature, idx) => (
+                    <div key={`feature-${idx}-${feature.name}`} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 flex-1">{feature.name}</span>
+                      <div className="flex items-center gap-2 w-32">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full"
+                            style={{
+                              backgroundColor: BRAND_COLOR,
+                              width: `${(feature.count / featureData[0].count) * 100}%`
+                            }}
+                          />
                         </div>
+                        <span className="text-xs font-medium text-gray-600 w-8 text-right">
+                          {feature.count}
+                        </span>
                       </div>
-                    ));
-                  })()}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

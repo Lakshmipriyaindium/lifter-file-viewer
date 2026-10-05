@@ -44,7 +44,8 @@ const BusinessRulesVisualizer: React.FC<BusinessRulesVisualizerProps> = ({ data 
 
 
   const businessRulesList = useMemo(() => {
-    return Array.isArray(data?.business_rules) ? data.business_rules : [];
+    if (Array.isArray(data)) return data;
+    return Array.isArray(data?.business_rules) ? data.business_rules : (Array.isArray(data?.businessRules) ? data.businessRules : []);
   }, [data]);
 
   // Extract unique values for filter dropdowns
@@ -92,10 +93,10 @@ const BusinessRulesVisualizer: React.FC<BusinessRulesVisualizerProps> = ({ data 
     if (filters.searchTerm) {
       const term = filters.searchTerm.toLowerCase();
       filtered = filtered.filter(rule =>
-        rule.name.toLowerCase().includes(term) ||
-        rule.description.toLowerCase().includes(term) ||
-        rule.statement.toLowerCase().includes(term) ||
-        rule.rule_id.toLowerCase().includes(term)
+        (rule.name || '').toLowerCase().includes(term) ||
+        (rule.description || '').toLowerCase().includes(term) ||
+        (rule.statement || '').toLowerCase().includes(term) ||
+        (rule.rule_id || '').toLowerCase().includes(term)
       );
     }
 
@@ -231,7 +232,7 @@ const BusinessRulesVisualizer: React.FC<BusinessRulesVisualizerProps> = ({ data 
                   The Lifter Business Rules Analyzer
                 </h1>
                 <p className="text-gray-600 mt-1">
-                  {processedData.length} of {data.business_rules.length} rules displayed
+                  {processedData.length} of {businessRulesList.length} rules displayed
                 </p>
               </div>
             </div>

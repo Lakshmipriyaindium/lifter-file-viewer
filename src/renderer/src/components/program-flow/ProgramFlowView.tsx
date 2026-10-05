@@ -144,7 +144,9 @@ function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR
 }
 
 function ProgramFlowViewInner({ data }: ProgramFlowViewProps) {
-  const { nodes = [], metadata = {} } = data;
+  const rawNodes = data?.nodes;
+  const nodes = Array.isArray(rawNodes) ? rawNodes : [];
+  const metadata = data?.metadata || {};
 
   const nodeById = useMemo(() => {
     const map = new Map<string, ProgramFlowNode>();

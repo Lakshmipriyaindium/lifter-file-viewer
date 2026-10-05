@@ -327,16 +327,16 @@ export default function LegacyVisualizer({ data }: Readonly<LegacyVisualizerProp
 
   // Transform data for domain view
   const domainTreemapData = useMemo(() => {
-    const children = Object.entries(data.domains).map(([name, domain], index) => ({
+    const children = Object.entries(data?.domains || {}).map(([name, domain], index) => ({
       name: name.length > 30 ? name.substring(0, 27) + '...' : name,
       fullName: name,
-      value: sizeMetric === 'loc' ? domain.total_lines : domain.file_count,
-      actualLoc: domain.total_lines,
+      value: sizeMetric === 'loc' ? (domain?.total_lines || 0) : (domain?.file_count || 0),
+      actualLoc: domain?.total_lines || 0,
       fill: COLORS[index % COLORS.length],
-      fileCount: domain.file_count,
+      fileCount: domain?.file_count || 0,
       domain: name,
-      features: domain.features.length,
-      files: domain.files
+      features: domain?.features?.length || 0,
+      files: domain?.files || []
     }));
 
     return {
@@ -347,16 +347,16 @@ export default function LegacyVisualizer({ data }: Readonly<LegacyVisualizerProp
 
   // Transform data for business feature view
   const featureTreemapData = useMemo(() => {
-    const children = Object.entries(data.business_features_l1).map(([name, feature], index) => ({
+    const children = Object.entries(data?.business_features_l1 || {}).map(([name, feature], index) => ({
       name: name.length > 30 ? name.substring(0, 27) + '...' : name,
       fullName: name,
-      value: sizeMetric === 'loc' ? feature.total_lines : feature.file_count,
-      actualLoc: feature.total_lines,
+      value: sizeMetric === 'loc' ? (feature?.total_lines || 0) : (feature?.file_count || 0),
+      actualLoc: feature?.total_lines || 0,
       fill: COLORS[index % COLORS.length],
-      fileCount: feature.file_count,
+      fileCount: feature?.file_count || 0,
       feature: name,
-      functions: feature.functions_l2.length,
-      files: feature.files
+      functions: feature?.functions_l2?.length || 0,
+      files: feature?.files || []
     }));
 
     return {
@@ -367,32 +367,32 @@ export default function LegacyVisualizer({ data }: Readonly<LegacyVisualizerProp
 
   // Calculate domain statistics
   const domainStats: DomainStats[] = useMemo(() => {
-    const totalLines = data.summary.total_lines_of_code;
-    return Object.entries(data.domains)
+    const totalLines = data?.summary?.total_lines_of_code || 1;
+    return Object.entries(data?.domains || {})
       .map(([name, domain]) => ({
         name,
-        files: domain.file_count,
-        lines: domain.total_lines,
-        percentage: (domain.total_lines / totalLines) * 100,
-        features: domain.features
+        files: domain?.file_count || 0,
+        lines: domain?.total_lines || 0,
+        percentage: ((domain?.total_lines || 0) / totalLines) * 100,
+        features: domain?.features || []
       }))
       .sort((a, b) => b.lines - a.lines);
   }, [data.domains, data.summary.total_lines_of_code]);
 
   // Calculate feature statistics
   const featureStats: FeatureStats[] = useMemo(() => {
-    const totalLines = data.summary.total_lines_of_code;
-    return Object.entries(data.business_features_l1)
+    const totalLines = data?.summary?.total_lines_of_code || 1;
+    return Object.entries(data?.business_features_l1 || {})
       .map(([name, feature]) => {
         // Get unique domains for this feature
         const domains = Array.from(new Set(
-          feature.files.map(f => f.primary_domain)
+          (feature?.files || []).map(f => f.primary_domain)
         ));
         return {
           name,
-          files: feature.file_count,
-          lines: feature.total_lines,
-          percentage: (feature.total_lines / totalLines) * 100,
+          files: feature?.file_count || 0,
+          lines: feature?.total_lines || 0,
+          percentage: ((feature?.total_lines || 0) / totalLines) * 100,
           domains
         };
       })
@@ -405,16 +405,16 @@ export default function LegacyVisualizer({ data }: Readonly<LegacyVisualizerProp
       return null;
     }
 
-    const domainData = data.domains[navigation.selectedDomain];
+    const domainData = data?.domains?.[navigation.selectedDomain];
     if (!domainData) return null;
 
-    const children = Object.entries(data.business_features_l1)
+    const children = Object.entries(data?.business_features_l1 || {})
       .filter(([, feature]) =>
-        feature.files.some(f => f.primary_domain === navigation.selectedDomain)
+        (feature?.files || []).some(f => f.primary_domain === navigation.selectedDomain)
       )
       .map(([name, feature], index) => {
-        const domainFiles = feature.files.filter(f => f.primary_domain === navigation.selectedDomain);
-        const domainLines = domainFiles.reduce((sum, f) => sum + f.total_lines, 0);
+        const domainFiles = (feature?.files || []).filter(f => f.primary_domain === navigation.selectedDomain);
+        const domainLines = domainFiles.reduce((sum, f) => sum + (f.total_lines || 0), 0);
         return {
           name: name.length > 30 ? name.substring(0, 27) + '...' : name,
           fullName: name,
@@ -442,15 +442,15 @@ export default function LegacyVisualizer({ data }: Readonly<LegacyVisualizerProp
       return null;
     }
 
-    const featureData = data.business_features_l1[navigation.selectedFeature];
+    const featureData = data?.business_features_l1?.[navigation.selectedFeature];
     if (!featureData) return null;
 
     // Group files by function (functions_l2)
     const functionGroups: Record<string, { files: BusinessFeatureFile[], lines: number }> = {};
 
-    for (const file of featureData.files) {
+    for (const file of featureData?.files || []) {
       // Find which functions this file belongs to based on feature
-      const fileFunctions = featureData.functions_l2 || [];
+      const fileFunctions = featureData?.functions_l2 || [];
 
       if (fileFunctions.length === 0) {
         // If no functions, group under "Other"
@@ -1324,7 +1324,7 @@ export default function LegacyVisualizer({ data }: Readonly<LegacyVisualizerProp
           The Lifter Legacy System Analysis
         </h1>
         <p className="text-gray-600">
-          Analyzed on {new Date(data.consolidation_date).toLocaleDateString()}
+          Analyzed on {data?.consolidation_date ? new Date(data.consolidation_date).toLocaleDateString() : 'N/A'}
         </p>
       </div>
 
@@ -1333,25 +1333,25 @@ export default function LegacyVisualizer({ data }: Readonly<LegacyVisualizerProp
         <div className="bg-white p-4 rounded-lg shadow">
           <p className="text-sm text-gray-600 mb-1">Total Files</p>
           <p className="text-2xl font-bold text-gray-900">
-            {data.summary.total_files.toLocaleString()}
+            {data?.summary?.total_files?.toLocaleString() || 0}
           </p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <p className="text-sm text-gray-600 mb-1">Lines of Code</p>
           <p className="text-2xl font-bold text-gray-900">
-            {data.summary.total_lines_of_code.toLocaleString()}
+            {data?.summary?.total_lines_of_code?.toLocaleString() || 0}
           </p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <p className="text-sm text-gray-600 mb-1">Domains</p>
           <p className="text-2xl font-bold text-gray-900">
-            {data.summary.unique_domains}
+            {data?.summary?.unique_domains || 0}
           </p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <p className="text-sm text-gray-600 mb-1">Business Features</p>
           <p className="text-2xl font-bold text-gray-900">
-            {data.summary.unique_business_features_l1}
+            {data?.summary?.unique_business_features_l1 || 0}
           </p>
         </div>
       </div>
