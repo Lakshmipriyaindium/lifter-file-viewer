@@ -56,29 +56,29 @@ const normalizeData = (data: any): L1Domain[] => {
   if (Array.isArray(data)) {
     return data;
   }
-  
+
   if (data && data.domains) {
     const normalized: L1Domain[] = [];
     let domainId = 1;
     for (const [domainName, domainObj] of Object.entries(data.domains) as any) {
       const l2Capabilities: L2Capability[] = [];
       let capId = 1;
-      
+
       const featuresList = domainObj.features || [];
       for (const featureName of featuresList) {
         const featureData = data.business_features_l1?.[featureName];
         const l3Features: L3Feature[] = [];
-        
+
         if (featureData && featureData.functions_l2) {
           featureData.functions_l2.forEach((funcName: string, fIdx: number) => {
             l3Features.push({
-              id: `l3-${domainId}-${capId}-${fIdx+1}`,
+              id: `l3-${domainId}-${capId}-${fIdx + 1}`,
               name: funcName,
               description: `Mapped from functions_l2 in ${featureName}`
             });
           });
         }
-        
+
         l2Capabilities.push({
           id: `l2-${domainId}-${capId}`,
           name: featureName,
@@ -87,7 +87,7 @@ const normalizeData = (data: any): L1Domain[] => {
         });
         capId++;
       }
-      
+
       normalized.push({
         id: `l1-${domainId}`,
         name: domainName,
@@ -98,13 +98,13 @@ const normalizeData = (data: any): L1Domain[] => {
     }
     return normalized;
   }
-  
+
   return [];
 };
 
 const COLORS = [
-  '#ef4444', '#f59e0b', '#8b5cf6', '#f97316', '#06b6d4', '#ec4899', 
-  '#3b82f6', '#10b981', '#14b8a6', '#84cc16', '#6366f1', '#f43f5e', 
+  '#ef4444', '#f59e0b', '#8b5cf6', '#f97316', '#06b6d4', '#ec4899',
+  '#3b82f6', '#10b981', '#14b8a6', '#84cc16', '#6366f1', '#f43f5e',
   '#0ea5e9', '#22c55e', '#a855f7'
 ];
 
@@ -130,7 +130,7 @@ const TreemapCustomContent = (props: CustomContentProps) => {
   const showName = width >= 60 && height >= 30;
   const showBasicMetrics = width >= 100 && height >= 60;
   const showDetailedMetrics = width >= 150 && height >= 100;
-  
+
   const fontSize = Math.max(Math.min(width / 10, height / 5, 14), 10);
   const metricFontSize = Math.max(Math.min(width / 14, height / 8, 11), 8);
 
@@ -152,7 +152,7 @@ const TreemapCustomContent = (props: CustomContentProps) => {
       {showName && (
         <text
           x={x + width / 2}
-          y={showDetailedMetrics ? y + height / 2 - 25 : showBasicMetrics ? y + height / 2 - 10 : y + height / 2 + (fontSize/3)}
+          y={showDetailedMetrics ? y + height / 2 - 25 : showBasicMetrics ? y + height / 2 - 10 : y + height / 2 + (fontSize / 3)}
           textAnchor="middle"
           fill="#fff"
           fontSize={fontSize}
@@ -162,7 +162,7 @@ const TreemapCustomContent = (props: CustomContentProps) => {
           {width < 100 ? (name.length > 10 ? name.substring(0, 8) + '...' : name) : name}
         </text>
       )}
-      
+
       {showDetailedMetrics ? (
         <>
           {capsCount !== undefined && capsCount > 0 && (
@@ -182,11 +182,11 @@ const TreemapCustomContent = (props: CustomContentProps) => {
           )}
         </>
       ) : showBasicMetrics ? (
-         <text x={x + width / 2} y={y + height / 2 + 15} textAnchor="middle" fill="#fff" fontSize={metricFontSize} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-            {itemType === 'Domain' ? `${featsCount} features` : itemType === 'Capability' ? `${featsCount} features` : `${storiesCount} stories`}
-         </text>
+        <text x={x + width / 2} y={y + height / 2 + 15} textAnchor="middle" fill="#fff" fontSize={metricFontSize} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+          {itemType === 'Domain' ? `${featsCount} features` : itemType === 'Capability' ? `${featsCount} features` : `${storiesCount} stories`}
+        </text>
       ) : null}
-      
+
       {width >= 100 && height >= 80 && (
         <g opacity="0.6">
           <circle cx={x + width - 20} cy={y + 20} r="12" fill="rgba(255, 255, 255, 0.2)" />
@@ -214,11 +214,11 @@ const TreemapTooltip = ({ active, payload }: any) => {
           {data.featsCount !== undefined && data.featsCount > 0 && <p><span className="font-semibold text-slate-700">Features:</span> {data.featsCount}</p>}
           {data.storiesCount !== undefined && data.storiesCount > 0 && <p><span className="font-semibold text-slate-700">User Stories:</span> {data.storiesCount}</p>}
           {data.description && (
-             <p className="mt-2 text-xs italic line-clamp-3 text-slate-500">{data.description}</p>
+            <p className="mt-2 text-xs italic line-clamp-3 text-slate-500">{data.description}</p>
           )}
         </div>
         <p className="text-[10px] text-slate-400 mt-3 text-center uppercase tracking-widest font-semibold">
-           Click to explore
+          Click to explore
         </p>
       </div>
     );
@@ -232,7 +232,7 @@ const HierarchySplitView: React.FC<{ data: any }> = ({ data: rawData }) => {
   const data = useMemo(() => normalizeData(rawData), [rawData]);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(data.map(d => d.id)));
-  const [selectedItem, setSelectedItem] = useState<{type: 'l1'|'l2'|'l3', data: any, parent?: any} | null>({
+  const [selectedItem, setSelectedItem] = useState<{ type: 'l1' | 'l2' | 'l3', data: any, parent?: any } | null>({
     type: 'l1', data: data[0]
   });
 
@@ -249,7 +249,7 @@ const HierarchySplitView: React.FC<{ data: any }> = ({ data: rawData }) => {
   const filteredData = useMemo(() => {
     if (!searchQuery) return data;
     const lowerQuery = searchQuery.toLowerCase();
-    
+
     return data.map(d => {
       const l2Caps = d.l2Capabilities || d.l2_capabilities || d.capabilities || [];
       const filteredL2 = l2Caps.map(c => {
@@ -342,55 +342,55 @@ const HierarchySplitView: React.FC<{ data: any }> = ({ data: rawData }) => {
     }
 
     if (selectedItem.type === 'l2') {
-        const cap = selectedItem.data as L2Capability;
-        return (
-            <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0 text-white shadow-sm mt-1">
-                  <Network className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded uppercase tracking-wider">
-                      L2 Capability
-                    </span>
-                    <span className="text-slate-400 text-sm font-medium">{cap.id}</span>
-                  </div>
-                  <h2 className="text-2xl font-bold text-slate-900">{cap.name}</h2>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                 <h3 className="font-semibold text-slate-800 mb-2">Description</h3>
-                 <p className="text-slate-600 text-sm">{cap.description || 'No description.'}</p>
-              </div>
+      const cap = selectedItem.data as L2Capability;
+      return (
+        <div className="space-y-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0 text-white shadow-sm mt-1">
+              <Network className="w-6 h-6" />
             </div>
-        )
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded uppercase tracking-wider">
+                  L2 Capability
+                </span>
+                <span className="text-slate-400 text-sm font-medium">{cap.id}</span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">{cap.name}</h2>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <h3 className="font-semibold text-slate-800 mb-2">Description</h3>
+            <p className="text-slate-600 text-sm">{cap.description || 'No description.'}</p>
+          </div>
+        </div>
+      )
     }
 
     if (selectedItem.type === 'l1') {
-        const domain = selectedItem.data as L1Domain;
-        return (
-            <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-slate-700 flex items-center justify-center flex-shrink-0 text-white shadow-sm mt-1">
-                  <Folder className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="px-2 py-0.5 bg-slate-200 text-slate-700 text-xs font-bold rounded uppercase tracking-wider">
-                      L1 Domain
-                    </span>
-                    <span className="text-slate-400 text-sm font-medium">{domain.id}</span>
-                  </div>
-                  <h2 className="text-2xl font-bold text-slate-900">{domain.name}</h2>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                 <h3 className="font-semibold text-slate-800 mb-2">Description</h3>
-                 <p className="text-slate-600 text-sm">{domain.description || domain.purpose || domain.executive_summary || 'No description.'}</p>
-              </div>
+      const domain = selectedItem.data as L1Domain;
+      return (
+        <div className="space-y-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-slate-700 flex items-center justify-center flex-shrink-0 text-white shadow-sm mt-1">
+              <Folder className="w-6 h-6" />
             </div>
-        )
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <span className="px-2 py-0.5 bg-slate-200 text-slate-700 text-xs font-bold rounded uppercase tracking-wider">
+                  L1 Domain
+                </span>
+                <span className="text-slate-400 text-sm font-medium">{domain.id}</span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">{domain.name}</h2>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <h3 className="font-semibold text-slate-800 mb-2">Description</h3>
+            <p className="text-slate-600 text-sm">{domain.description || domain.purpose || domain.executive_summary || 'No description.'}</p>
+          </div>
+        </div>
+      )
     }
   };
 
@@ -405,8 +405,8 @@ const HierarchySplitView: React.FC<{ data: any }> = ({ data: rawData }) => {
           </div>
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search capabilities or features..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -421,17 +421,17 @@ const HierarchySplitView: React.FC<{ data: any }> = ({ data: rawData }) => {
               const isExpandedL1 = expandedNodes.has(l1.id);
               const isSelectedL1 = selectedItem?.type === 'l1' && selectedItem.data.id === l1.id;
               const l2Caps = l1.l2Capabilities || l1.l2_capabilities || l1.capabilities || [];
-              
+
               return (
                 <div key={l1.id} className="select-none">
-                  <div 
+                  <div
                     className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer text-sm ${isSelectedL1 ? 'bg-orange-100 text-orange-800' : 'hover:bg-slate-200/50 text-slate-700'}`}
-                    onClick={() => setSelectedItem({type: 'l1', data: l1})}
+                    onClick={() => setSelectedItem({ type: 'l1', data: l1 })}
                   >
                     <div className="w-4 h-4 flex items-center justify-center cursor-pointer" onClick={(e) => toggleNode(l1.id, e)}>
-                       {l2Caps.length > 0 && (
-                         isExpandedL1 ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                       )}
+                      {l2Caps.length > 0 && (
+                        isExpandedL1 ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                      )}
                     </div>
                     <Folder className={`w-4 h-4 ${isSelectedL1 ? 'text-orange-600' : 'text-slate-400'}`} />
                     <span className="font-medium truncate">{l1.name}</span>
@@ -442,12 +442,12 @@ const HierarchySplitView: React.FC<{ data: any }> = ({ data: rawData }) => {
                       {l2Caps.map(l2 => {
                         const isExpandedL2 = expandedNodes.has(l2.id);
                         const isSelectedL2 = selectedItem?.type === 'l2' && selectedItem.data.id === l2.id;
-                        
+
                         return (
                           <div key={l2.id}>
-                            <div 
+                            <div
                               className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer text-sm ${isSelectedL2 ? 'bg-blue-100 text-blue-800' : 'hover:bg-slate-200/50 text-slate-700'}`}
-                              onClick={() => setSelectedItem({type: 'l2', data: l2, parent: l1})}
+                              onClick={() => setSelectedItem({ type: 'l2', data: l2, parent: l1 })}
                             >
                               <div className="w-4 h-4 flex items-center justify-center cursor-pointer" onClick={(e) => toggleNode(l2.id, e)}>
                                 {l2.l3Features && l2.l3Features.length > 0 && (
@@ -463,10 +463,10 @@ const HierarchySplitView: React.FC<{ data: any }> = ({ data: rawData }) => {
                                 {l2.l3Features.map(l3 => {
                                   const isSelectedL3 = selectedItem?.type === 'l3' && selectedItem.data.id === l3.id;
                                   return (
-                                    <div 
+                                    <div
                                       key={l3.id}
                                       className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer text-sm ${isSelectedL3 ? 'bg-orange-50 border border-orange-200 text-orange-800 shadow-sm' : 'hover:bg-slate-200/50 text-slate-600'}`}
-                                      onClick={() => setSelectedItem({type: 'l3', data: l3, parent: l2})}
+                                      onClick={() => setSelectedItem({ type: 'l3', data: l3, parent: l2 })}
                                     >
                                       <div className="w-4 h-4 flex items-center justify-center" />
                                       <FileText className={`w-3.5 h-3.5 ${isSelectedL3 ? 'text-orange-500' : 'text-slate-400'}`} />
@@ -560,10 +560,10 @@ const CapabilityModelViewer: React.FC<{ data: any }> = ({ data: rawData }) => {
 
   const handleTreemapClick = (node: any) => {
     if (node.itemType === 'Domain' && node.domainRef) {
-       setActiveDomain(node.domainRef);
-       setActiveCapability(null);
+      setActiveDomain(node.domainRef);
+      setActiveCapability(null);
     } else if (node.itemType === 'Capability' && node.capRef) {
-       setActiveCapability(node.capRef);
+      setActiveCapability(node.capRef);
     }
   };
 
@@ -606,97 +606,97 @@ const CapabilityModelViewer: React.FC<{ data: any }> = ({ data: rawData }) => {
         </div>
 
         {viewType === 'tile' ? (
-           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                 <div className="flex items-center gap-4">
-                   <h2 className="text-2xl font-bold text-slate-900">
-                     {activeCapability 
-                       ? `Features in ${activeCapability.name}` 
-                       : activeDomain 
-                         ? `Capabilities in ${activeDomain.name}` 
-                         : 'Domain Distribution'}
-                   </h2>
-                   
-                   {!activeDomain && !activeCapability && (
-                      <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                        <ZoomIn size={16} />
-                        <span>Click a domain to explore features</span>
-                      </div>
-                   )}
-                 </div>
-                 
-                 <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setIsTooltipEnabled(!isTooltipEnabled)}
-                      className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isTooltipEnabled
-                        ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm'
-                        : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                        }`}
-                      title={isTooltipEnabled ? 'Disable tooltip' : 'Enable tooltip'}
-                    >
-                      <Info size={16} />
-                      <span>{isTooltipEnabled ? 'Tooltip On' : 'Tooltip Off'}</span>
-                    </button>
-                    <button
-                      onClick={() => alert("HTML Export is available through the single file viewer or Legacy Visualizer.")}
-                      className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
-                      title="Export as standalone HTML"
-                    >
-                      <Download size={16} />
-                      <span>Export HTML</span>
-                    </button>
-                    <button
-                      onClick={handleExportImage}
-                      className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shadow-sm"
-                      title="Export as image"
-                    >
-                      <Download size={16} />
-                      <span>Export PNG</span>
-                    </button>
-                 </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-bold text-slate-900">
+                  {activeCapability
+                    ? `Features in ${activeCapability.name}`
+                    : activeDomain
+                      ? `Capabilities in ${activeDomain.name}`
+                      : 'Domain Distribution'}
+                </h2>
+
+                {!activeDomain && !activeCapability && (
+                  <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                    <ZoomIn size={16} />
+                    <span>Click a domain to explore features</span>
+                  </div>
+                )}
               </div>
-              
-              {(activeDomain || activeCapability) && (
-                 <div className="mb-4 pb-4 border-b border-slate-100">
-                    <button 
-                       onClick={() => {
-                          if (activeCapability) {
-                            setActiveCapability(null);
-                          } else {
-                            setActiveDomain(null);
-                          }
-                       }}
-                       className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"
-                    >
-                       <ChevronLeft className="w-4 h-4" />
-                       {activeCapability ? 'Back to Capabilities' : 'Back to Domains'}
-                    </button>
-                 </div>
-              )}
-              
-              <div className="w-full h-[700px] rounded-xl overflow-hidden" ref={treemapRef}>
-                 <ResponsiveContainer width="100%" height="100%">
-                   <Treemap
-                     data={treemapData}
-                     dataKey="value"
-                     aspectRatio={1.5}
-                     stroke="#fff"
-                     content={<TreemapCustomContent />}
-                     isAnimationActive={false}
-                     onClick={(data: any) => {
-                        const payload = data?.payload || data?.node?.data || data;
-                        if (payload) {
-                          handleTreemapClick(payload);
-                        }
-                     }}
-                   >
-                     {isTooltipEnabled && <RechartsTooltip content={<TreemapTooltip />} />}
-                   </Treemap>
-                 </ResponsiveContainer>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsTooltipEnabled(!isTooltipEnabled)}
+                  className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isTooltipEnabled
+                    ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm'
+                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                    }`}
+                  title={isTooltipEnabled ? 'Disable tooltip' : 'Enable tooltip'}
+                >
+                  <Info size={16} />
+                  <span>{isTooltipEnabled ? 'Tooltip On' : 'Tooltip Off'}</span>
+                </button>
+                <button
+                  onClick={() => alert("HTML Export is available through the single file viewer or Legacy Visualizer.")}
+                  className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
+                  title="Export as standalone HTML"
+                >
+                  <Download size={16} />
+                  <span>Export HTML</span>
+                </button>
+                <button
+                  onClick={handleExportImage}
+                  className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shadow-sm"
+                  title="Export as image"
+                >
+                  <Download size={16} />
+                  <span>Export PNG</span>
+                </button>
               </div>
-           </div>
+            </div>
+
+            {(activeDomain || activeCapability) && (
+              <div className="mb-4 pb-4 border-b border-slate-100">
+                <button
+                  onClick={() => {
+                    if (activeCapability) {
+                      setActiveCapability(null);
+                    } else {
+                      setActiveDomain(null);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  {activeCapability ? 'Back to Capabilities' : 'Back to Domains'}
+                </button>
+              </div>
+            )}
+
+            <div className="w-full h-[700px] rounded-xl overflow-hidden" ref={treemapRef}>
+              <ResponsiveContainer width="100%" height="100%">
+                <Treemap
+                  data={treemapData}
+                  dataKey="value"
+                  aspectRatio={1.5}
+                  stroke="#fff"
+                  content={<TreemapCustomContent />}
+                  isAnimationActive={false}
+                  onClick={(data: any) => {
+                    const payload = data?.payload || data?.node?.data || data;
+                    if (payload) {
+                      handleTreemapClick(payload);
+                    }
+                  }}
+                >
+                  {isTooltipEnabled && <RechartsTooltip content={<TreemapTooltip />} />}
+                </Treemap>
+              </ResponsiveContainer>
+            </div>
+          </div>
         ) : (
-            <HierarchySplitView data={data} />
+          <HierarchySplitView data={data} />
         )}
       </div>
     </div>
