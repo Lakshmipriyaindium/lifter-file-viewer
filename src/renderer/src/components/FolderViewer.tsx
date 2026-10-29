@@ -122,6 +122,32 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
     setExpandedFolders(foldersToExpand);
   }, [searchQuery]);
 
+  // Auto-expand parent folders of selected file
+  useEffect(() => {
+    if (selectedFile) {
+      setExpandedFolders(prev => {
+        const next = new Set(prev);
+        let changed = false;
+        
+        // Split path to get all parent directories
+        // Example: "root/folder/file.txt" -> we need to expand "root" and "root/folder"
+        const parts = selectedFile.path.split(/[\/\\]/);
+        let currentPath = parts[0];
+        
+        // We stop at parts.length - 1 because the last part is the file itself
+        for (let i = 1; i < parts.length; i++) {
+          if (!next.has(currentPath)) {
+            next.add(currentPath);
+            changed = true;
+          }
+          currentPath = `${currentPath}/${parts[i]}`;
+        }
+        
+        return changed ? next : prev;
+      });
+    }
+  }, [selectedFile]);
+
   const handleSelectFolderClick = () => {
     fileInputRef.current?.click();
   };
@@ -286,7 +312,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
         <div key={node.path} style={{ paddingLeft: `${level * 12}px` }}>
           <div 
             onClick={() => handleFileClick(node)}
-            className={`flex items-center py-1 px-2 rounded-md cursor-pointer hover:bg-orange-50 group transition-colors mb-0.5 ${selectedFile?.path === node.path ? 'bg-orange-100 text-orange-700' : 'text-gray-700'}`}
+            className={`flex items-center py-1.5 px-2 rounded-md cursor-pointer hover:bg-orange-50 group transition-colors mb-0.5 ${selectedFile?.path === node.path ? 'bg-orange-100 text-orange-700 font-bold border-l-4 border-orange-500 pl-1' : 'text-gray-700'}`}
           >
             <span className="mr-2 text-base flex-shrink-0">
               {node.isDirectory ? (expandedFolders.has(node.path) ? '📂' : '📁') : getFileIcon(node.name)}
