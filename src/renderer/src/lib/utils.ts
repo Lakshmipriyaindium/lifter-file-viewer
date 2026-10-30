@@ -105,13 +105,26 @@ export const determineChartType = (fileName: string, content: string): string | 
     if (lowerName.includes("business_metrics")) return "business_metrics";
     if (lowerName.includes("consolidated_business_reports")) return "consolidated_business_reports";
     if (lowerName.includes("cross_source_links") || lowerName.includes("cross_repo")) return "cross_repo";
+    if (lowerName.includes("cloud_readiness") || lowerName.includes("cloud_native")) return "cloud";
+    // Content-based detection for cloud readiness files
+    try {
+      const data = JSON.parse(content);
+      if (
+        data &&
+        typeof data.overall_score === 'number' &&
+        Array.isArray(data.dimensions) &&
+        typeof data.recommended_strategy === 'string'
+      ) {
+        return "cloud";
+      }
+    } catch (e) { }
 
     try {
       const data = JSON.parse(content);
       if (Array.isArray(data) && data.length > 0 && data[0].l2Capabilities) {
         return "capability_model";
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   return null;

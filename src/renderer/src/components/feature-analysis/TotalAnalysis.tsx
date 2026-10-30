@@ -2051,8 +2051,8 @@ const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data:
 
       {/* Key Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <MetricCard label="Flows" value={stats.totalFlows} icon="🔀" color={brandColor} />
-        <MetricCard label="Flow Groups" value={stats.totalFlowGroups} icon="📂" color={brandColor} />
+        {/* <MetricCard label="Flows" value={stats.totalFlows} icon="🔀" color={brandColor} /> */}
+        {/* <MetricCard label="Flow Groups" value={stats.totalFlowGroups} icon="📂" color={brandColor} /> */}
         <MetricCard label="Features" value={stats.totalFeatures} icon="🌟" color={brandColor} />
         <MetricCard label="Business Rules" value={stats.totalBusinessRules} icon="📜" color={brandColor} />
         <MetricCard label="User Stories" value={stats.totalUserStories} icon="👥" color={brandColor} />
@@ -2154,7 +2154,7 @@ const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data:
 
   const renderFlowGroups = () => {
     const flowGroups = Object.values(data.flow_groups || {});
-    
+
     if (flowGroups.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-gray-100">
@@ -2852,8 +2852,8 @@ const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data:
   // TAB NAVIGATION
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '📊' },
-    { id: 'flows', label: 'Flows', icon: '🔀' },
-    { id: 'flowGroups', label: 'Flow Groups', icon: '📁' },
+    // { id: 'flows', label: 'Flows', icon: '🔀' },
+    // { id: 'flowGroups', label: 'Flow Groups', icon: '📁' },
     { id: 'features', label: 'Features', icon: '🌟' },
     { id: 'rules', label: 'Business Rules', icon: '📜' },
     { id: 'stories', label: 'User Stories', icon: '👥' },

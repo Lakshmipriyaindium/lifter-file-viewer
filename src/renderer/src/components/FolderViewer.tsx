@@ -28,6 +28,7 @@ import CrossRepoVisualizer from './cross-repo/CrossRepoVisualizer';
 import FocusedAnalysis from './feature-analysis/FocusedAnalysis';
 import BusinessMetricsAnalysis from './business-metrics/BusinessMetricsAnalysis';
 import ConsolidatedBusinessReport from './consolidated-business/ConsolidatedBusinessReport';
+import CloudReadinessViewer from './cloud/CloudReadinessViewer';
 
 interface ChartEBProps {
   onOpenInEditor: () => void;
@@ -58,7 +59,7 @@ class ChartErrorBoundary extends Component<ChartEBProps, ChartEBState> {
           <div className="text-5xl mb-4">📄</div>
           <h3 className="text-xl font-semibold mb-2">No Visualizer for this File Schema</h3>
           <p className="mb-6 max-w-md">This file does not match the expected data format for chart rendering. You can view or edit the raw content in the Editor.</p>
-          <button 
+          <button
             onClick={() => {
               this.setState({ hasError: false });
               this.props.onOpenInEditor();
@@ -93,11 +94,11 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Auto-expand folders when searching
   useEffect(() => {
     if (!searchQuery) return;
-    
+
     const foldersToExpand = new Set<string>(expandedFolders);
     const findFoldersToExpand = (nodes: FileNode[]) => {
       nodes.forEach(node => {
@@ -109,7 +110,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
             }
             return false;
           };
-          
+
           if (hasMatchInDescendants(node)) {
             foldersToExpand.add(node.path);
             if (node.children) findFoldersToExpand(node.children);
@@ -117,7 +118,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
         }
       });
     };
-    
+
     findFoldersToExpand(tree);
     setExpandedFolders(foldersToExpand);
   }, [searchQuery]);
@@ -128,12 +129,12 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       setExpandedFolders(prev => {
         const next = new Set(prev);
         let changed = false;
-        
+
         // Split path to get all parent directories
         // Example: "root/folder/file.txt" -> we need to expand "root" and "root/folder"
         const parts = selectedFile.path.split(/[\/\\]/);
         let currentPath = parts[0];
-        
+
         // We stop at parts.length - 1 because the last part is the file itself
         for (let i = 1; i < parts.length; i++) {
           if (!next.has(currentPath)) {
@@ -142,7 +143,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
           }
           currentPath = `${currentPath}/${parts[i]}`;
         }
-        
+
         return changed ? next : prev;
       });
     }
@@ -162,7 +163,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
 
     for (const file of files) {
       if (isHidden(file.name)) continue;
-      
+
       const parts = file.webkitRelativePath.split('/');
       let currentLevel = rootNodes;
       let currentPath = '';
@@ -170,10 +171,10 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
         currentPath = currentPath ? `${currentPath}/${part}` : part;
-        
+
         const isFile = i === parts.length - 1;
         let existingNode = dirMap.get(currentPath);
-        
+
         if (!existingNode) {
           existingNode = {
             name: part,
@@ -186,7 +187,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
           dirMap.set(currentPath, existingNode);
           currentLevel.push(existingNode);
         }
-        
+
         if (!isFile) {
           currentLevel = existingNode.children!;
         }
@@ -203,11 +204,11 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
         if (node.children) sortNodes(node.children);
       });
     };
-    
+
     sortNodes(rootNodes);
-    
+
     if (rootNodes.length === 1 && rootNodes[0].isDirectory) {
-        return rootNodes[0].children || [];
+      return rootNodes[0].children || [];
     }
     return rootNodes;
   };
@@ -263,7 +264,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       setIsTruncated(false);
       setIsTooLarge(false);
       setFileSizeStr('');
-      
+
       try {
         if (!file.file) return;
 
@@ -310,7 +311,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       .filter(node => !searchQuery || matchesSearch(node))
       .map(node => (
         <div key={node.path} style={{ paddingLeft: `${level * 12}px` }}>
-          <div 
+          <div
             onClick={() => handleFileClick(node)}
             className={`flex items-center py-1.5 px-2 rounded-md cursor-pointer hover:bg-orange-50 group transition-colors mb-0.5 ${selectedFile?.path === node.path ? 'bg-orange-100 text-orange-700 font-bold border-l-4 border-orange-500 pl-1' : 'text-gray-700'}`}
           >
@@ -338,13 +339,13 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
 
   const renderChart = () => {
     if (!selectedFile || !fileContent) return <div className="flex items-center justify-center h-full text-gray-400">Select a file to view chart</div>;
-    
+
     const mode = determineChartType(selectedFile.name, fileContent);
-    
+
     try {
       if (mode === 'plantuml') return <PlantUMLViewer code={fileContent} />;
       if (mode === 'mermaid') return <MermaidViewer code={fileContent} />;
-      
+
       const data = JSON.parse(fileContent);
       if (mode === 'total_analysis') return <TotalAnalysisVisualizer data={data} projectId="local" artifactId="local" />;
       if (mode === 'hierarchical_features') return <HierarchicalFeatureAnalysis data={data} />;
@@ -372,13 +373,14 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       if (mode === 'focused_analysis') return <FocusedAnalysis data={data} />;
       if (mode === 'business_metrics') return <BusinessMetricsAnalysis data={data} />;
       if (mode === 'consolidated_business_reports') return <ConsolidatedBusinessReport data={data} />;
-      
+      if (mode === 'cloud') return <CloudReadinessViewer data={data} />;
+
       return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8 text-center">
           <div className="text-5xl mb-4">🧩</div>
           <h3 className="text-xl font-semibold mb-2">No Visualization Available</h3>
           <p className="mb-6 max-w-md">This file type or structure doesn't match any known chart formats. You can view the raw content in the Editor.</p>
-          <button 
+          <button
             onClick={() => setActiveTab('editor')}
             className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-all"
           >
@@ -392,7 +394,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
           <div className="text-5xl mb-4">⚠️</div>
           <h3 className="text-xl font-semibold mb-2 text-red-500">Parsing Error</h3>
           <p className="mb-6 max-w-md">The file content could not be parsed correctly. It might be malformed or not a valid JSON/diagram file.</p>
-          <button 
+          <button
             onClick={() => setActiveTab('editor')}
             className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-medium transition-all"
           >
@@ -413,21 +415,21 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
             ✕
           </button>
         </div>
-        
+
         {!rootPath ? (
           <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
             <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-3xl mb-4 text-orange-500">📂</div>
             <p className="text-sm text-gray-500 mb-6">Open a folder to start browsing your project files</p>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              style={{ display: 'none' }} 
-              onChange={handleFolderChange} 
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              onChange={handleFolderChange}
               //@ts-ignore - webkitdirectory is a non-standard attribute but works in modern browsers
-              webkitdirectory="true" 
-              directory="true" 
+              webkitdirectory="true"
+              directory="true"
             />
-            <button 
+            <button
               onClick={handleSelectFolderClick}
               className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-all shadow-sm"
             >
@@ -438,16 +440,16 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
           <>
             <div className="p-4">
               <div className="relative">
-                <input 
-                  type="text" 
-                  placeholder="Search files..." 
+                <input
+                  type="text"
+                  placeholder="Search files..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
                 />
                 <span className="absolute left-3 top-2.5 text-gray-400 text-xs">🔍</span>
                 {searchQuery && (
-                  <button 
+                  <button
                     onClick={() => setSearchQuery('')}
                     className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 transition-colors"
                   >
@@ -487,7 +489,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
             )}
             {!selectedFile && <span className="italic">Select a file to begin</span>}
           </div>
-          
+
           <div className="flex bg-gray-100 p-1 rounded-lg">
             {(['editor', 'chart'] as const).map(tab => (
               <button
@@ -540,7 +542,7 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
                           </span>
                         </div>
                       )}
-                      <textarea 
+                      <textarea
                         value={fileContent}
                         readOnly
                         className="w-full flex-grow p-6 text-sm font-mono bg-white border-none focus:outline-none resize-none"
