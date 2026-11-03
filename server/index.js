@@ -102,6 +102,11 @@ app.get('/api/stat', (req, res) => {
 // Optionally serve the built frontend
 app.use(express.static(path.join(__dirname, '../dist')));
 
+// Fallback to index.html for SPA client-side routing
+app.get('{*path}', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

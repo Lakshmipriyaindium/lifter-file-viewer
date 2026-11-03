@@ -16,7 +16,8 @@
   "scripts": {
     "dev": "concurrently \"vite --open\" \"node server/index.js\"",
     "start": "npm run dev",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --open",
     "server": "node server/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
