@@ -663,8 +663,8 @@ export interface Citation {
   line_start: number | string;
   line_end: number | string;
   language: string;
-  entity_name: string | null;
-  entity_type: string | null;
+  entity_name?: string | null;
+  entity_type?: string | null;
   schema_name?: string | null;
   database?: string | null;
   document_name?: string | null;

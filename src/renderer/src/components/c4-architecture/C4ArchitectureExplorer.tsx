@@ -8,11 +8,11 @@ import { C4MermaidRenderer } from './C4MermaidRenderer';
 
 interface C4ArchitectureExplorerProps {
   application_id?: number | string;
-  c4Data?: C4Data;
+  data?: C4Data;
   showHeader?: boolean;
 }
 
-export default function C4ArchitectureExplorer({ application_id, c4Data: propC4Data, showHeader = false }: C4ArchitectureExplorerProps = {}) {
+export default function C4ArchitectureExplorer({ application_id, data: propC4Data, showHeader = false }: C4ArchitectureExplorerProps = {}) {
   const [c4Data, setC4Data] = useState<C4Data | null>(normalizeC4Data(propC4Data) || null);
   const [loading, setLoading] = useState<boolean>(!propC4Data && !!application_id);
   const [error, setError] = useState<string | null>(null);
@@ -172,7 +172,7 @@ export default function C4ArchitectureExplorer({ application_id, c4Data: propC4D
         <p className="text-xs text-slate-500 mt-1 max-w-md mb-6">
           {error || `No C4 architecture analysis results were returned for application ID: ${application_id || 'unspecified'}.`}
         </p>
-        
+
         <label className="flex items-center gap-2 cursor-pointer bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors shadow-sm text-sm font-semibold">
           <Upload className="h-4 w-4" />
           Upload JSON File

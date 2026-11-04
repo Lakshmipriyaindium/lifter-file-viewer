@@ -8,8 +8,8 @@ interface Citation {
   source_type: string;
   node_name: string;
   file_path: string;
-  line_start: number;
-  line_end: number;
+  line_start: number | string;
+  line_end: number | string;
   language: string;
 }
 
@@ -41,6 +41,7 @@ interface UserStory {
   reference_documents?: ReferenceDocument[] | null;
   depends_on?: string[] | null;
   blocks?: string[] | null;
+  citations?: Citation[] | null;
 }
 
 interface BusinessRule {
@@ -2373,7 +2374,7 @@ const TotalAnalysisVisualizer: React.FC<TotalAnalysisVisualizerProps> = ({ data:
                             </div>
                             <div className="flex items-center gap-3 text-gray-500">
                               <span>Lines: {citation.line_start} - {citation.line_end}</span>
-                              <span>({citation.line_end - citation.line_start + 1} lines)</span>
+                              <span>({Number(citation.line_end) - Number(citation.line_start) + 1} lines)</span>
                             </div>
                             {(citation.entity_name || citation.database || citation.schema_name) && (
                               <div className="mt-2 flex flex-wrap gap-2">

@@ -105,7 +105,18 @@ export const determineChartType = (fileName: string, content: string): string | 
     if (lowerName.includes("business_metrics")) return "business_metrics";
     if (lowerName.includes("consolidated_business_reports")) return "consolidated_business_reports";
     if (lowerName.includes("cross_source_links") || lowerName.includes("cross_repo")) return "cross_repo";
+    if (lowerName.includes("architecture_analysis")) return "architecture_analysis";
+    if (lowerName.includes("c4_architecture")) return "c4_architecture";
     if (lowerName.includes("cloud_readiness") || lowerName.includes("cloud_native")) return "cloud";
+
+    // Content-based detection for architecture analysis reports (before the cloud check)
+    try {
+      const data = JSON.parse(content);
+      if (data && data.architecture_style && Array.isArray(data.checklist_items) && data.microservice_readiness) {
+        return "architecture_analysis";
+      }
+    } catch (e) { }
+
     // Content-based detection for cloud readiness files
     try {
       const data = JSON.parse(content);

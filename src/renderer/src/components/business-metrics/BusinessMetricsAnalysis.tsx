@@ -183,7 +183,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, title, value, subtitle, color
         </div>
       )}
     </div>
-    <style jsx>{`
+    <style>{`
       .stat-card {
         background: white;
         border: 1px solid #e5e7eb;
@@ -273,7 +273,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, icon, children, 
       {actions && <div className="chart-actions">{actions}</div>}
     </div>
     <div className="chart-content">{children}</div>
-    <style jsx>{`
+    <style>{`
       .chart-card {
         background: white;
         border: 1px solid #e5e7eb;
@@ -338,7 +338,7 @@ const FilterBadge: React.FC<FilterBadgeProps> = ({ label, onRemove }) => (
     <button onClick={onRemove} className="filter-remove">
       <X size={12} />
     </button>
-    <style jsx>{`
+    <style>{`
       .filter-badge {
         display: inline-flex;
         align-items: center;
@@ -389,7 +389,7 @@ const CustomBarTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label
         <span className="tooltip-number">{payload[0].value.toLocaleString()}</span>
         <span className="tooltip-suffix"> files</span>
       </p>
-      <style jsx>{`
+      <style>{`
         .custom-tooltip {
           background: rgba(17, 24, 39, 0.95);
           padding: 12px 16px;
@@ -645,7 +645,7 @@ const BusinessMetricsAnalysis: React.FC<BusinessMetricsProps> = ({ data: rawData
     // Load both logos
     const logoLightBase64 = await loadLogoAsBase64('/assets/logo-light.png');
     const faviconBase64 = await loadLogoAsBase64('/favicon-3.webp');
-    
+
     const createLogoImg = (base64: string, alt: string, height: string = '48px', width: string = '48px') => {
       if (base64) {
         return `<img src="${base64}" alt="${alt}" style="width: ${width}; height: ${height}; flex-shrink: 0; object-fit: contain; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; display: block;">`;
@@ -655,7 +655,7 @@ const BusinessMetricsAnalysis: React.FC<BusinessMetricsProps> = ({ data: rawData
 
     const logoLightImg = createLogoImg(logoLightBase64, 'Liftr.ai Logo', '70px', '70px');
     const faviconImg = createLogoImg(faviconBase64, 'Liftr.ai Favicon', '20px', '20px');
-    
+
     const logoImgTag = logoLightImg && faviconImg
       ? `${logoLightImg}<div style="width: 1px; height: 24px; background-color: #9ca3af; margin: 0 12px; align-self: center;"></div>${faviconImg}`
       : logoLightImg || faviconImg || '';
@@ -1831,7 +1831,7 @@ const BusinessMetricsAnalysis: React.FC<BusinessMetricsProps> = ({ data: rawData
                         outerRadius={100}
                         paddingAngle={5}
                         dataKey="value"
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        label={({ name, percent = 0 }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                       >
                         {sizeChartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -1983,7 +1983,7 @@ const BusinessMetricsAnalysis: React.FC<BusinessMetricsProps> = ({ data: rawData
                       cy="50%"
                       outerRadius={150}
                       dataKey="value"
-                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(1)}%)`}
+                      label={({ name, percent = 0 }) => `${name} (${(percent * 100).toFixed(1)}%)`}
                     >
                       {languageChartData.slice(0, 8).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -2376,7 +2376,7 @@ const BusinessMetricsAnalysis: React.FC<BusinessMetricsProps> = ({ data: rawData
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .business-metrics-container {
           min-height: 100vh;
           background: #f9fafb;

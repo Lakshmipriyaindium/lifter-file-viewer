@@ -22,9 +22,9 @@ import { ApiAnalysisVisualization } from './components/dotnet-api/DotNetAPIVisua
 import HierarchicalFeatureAnalysis from './components/feature-analysis/hierachy-feature';
 import CapabilityModelViewer from './components/feature-analysis/CapabilityModelViewer';
 import CrossRepoVisualizer from './components/cross-repo/CrossRepoVisualizer';
-import C4ArchitectureExplorer from './components/c4-architecture/C4ArchitectureExplorer';
 import CloudReadinessViewer from './components/cloud/CloudReadinessViewer';
-
+import C4ArchitectureExplorer from './components/c4-architecture/C4ArchitectureExplorer';
+import ArchitectureAnalysisViewer from './components/architecture-analysis/ArchitectureAnalysisViewer';
 // ──────────────────────────────────────────────
 // Error Boundary – catches render-time crashes
 // caused by wrong/malformed JSON being passed to a visualizer
@@ -136,7 +136,7 @@ function App() {
   const [rawText, setRawText] = useState<string>('');
   const [error, setError] = useState('');
   const [mode, setMode] = useState<
-    'mermaid' | 'plantuml' | 'total_analysis' | 'business_rules' | 'd3_graph' | 'd3_graph_v2' | 'client_customizations' | 'customizations_by_node' | 'kg' | 'user_stories' | 'business_process_flow' | 'consolidated_analysis' | 'legacy_consolidated_analysis' | 'consolidated_business_reports' | 'business_terms' | 'module_analysis' | 'consolidated_project_inventory' | 'project_analysis_result' | 'API-report' | 'capability_model' | 'cross_repo' | 'c4_architecture' | 'cloud' | null
+    'mermaid' | 'plantuml' | 'total_analysis' | 'business_rules' | 'd3_graph' | 'd3_graph_v2' | 'client_customizations' | 'customizations_by_node' | 'kg' | 'user_stories' | 'business_process_flow' | 'consolidated_analysis' | 'legacy_consolidated_analysis' | 'consolidated_business_reports' | 'business_terms' | 'module_analysis' | 'consolidated_project_inventory' | 'project_analysis_result' | 'API-report' | 'capability_model' | 'cross_repo' | 'cloud' | 'hierarchical_features' | 'c4_architecture' | 'architecture_analysis' | null
   >(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, selectedMode: string) => {
@@ -173,7 +173,7 @@ function App() {
         );
       }
 
-      const jsonModes = ['total_analysis', 'hierarchical_features', 'business_rules', 'd3_graph', 'd3_graph_v2', 'client_customizations', 'customizations_by_node', 'kg', 'user_stories', 'business_process_flow', 'consolidated_analysis', 'consolidated_business_reports', 'business_terms', 'module_analysis', 'consolidated_project_inventory', 'project_analysis_result', 'API-report', 'capability_model', 'cross_repo', 'c4_architecture', 'cloud'];
+      const jsonModes = ['total_analysis', 'hierarchical_features', 'business_rules', 'd3_graph', 'd3_graph_v2', 'client_customizations', 'customizations_by_node', 'kg', 'user_stories', 'business_process_flow', 'consolidated_analysis', 'consolidated_business_reports', 'business_terms', 'module_analysis', 'consolidated_project_inventory', 'project_analysis_result', 'API-report', 'capability_model', 'cross_repo', 'cloud', 'c4_architecture', 'architecture_analysis'];
       if (jsonModes.includes(actualMode)) {
         const parsedData = JSON.parse(text); // throws if invalid JSON
         setData(parsedData);
@@ -182,6 +182,7 @@ function App() {
       }
 
       setMode(actualMode as any);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     } catch (e: any) {
       setError(e.message || 'Failed to process file.');
     }
@@ -194,6 +195,7 @@ function App() {
     setRawText('');
     setMode(null);
     setError('');
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   // ── Error screen (e.g. JSON parse failure, unknown file type) ──
@@ -461,17 +463,6 @@ function App() {
     );
   }
 
-  if (mode === 'c4_architecture' && data) {
-    return (
-      <div className="w-full min-h-screen bg-gray-50">
-        <ViewerHeader onBack={resetApp} />
-        <ErrorBoundary onReset={resetApp}>
-          <C4ArchitectureExplorer c4Data={data} showHeader={true} />
-        </ErrorBoundary>
-      </div>
-    );
-  }
-
   if (mode === 'cloud' && data) {
     return (
       <div className="w-full min-h-screen bg-gray-50">
@@ -483,6 +474,27 @@ function App() {
     );
   }
 
+  if (mode === 'c4_architecture' && data) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50">
+        <ViewerHeader onBack={resetApp} />
+        <ErrorBoundary onReset={resetApp}>
+          <C4ArchitectureExplorer data={data} />
+        </ErrorBoundary>
+      </div>
+    );
+  }
+
+  if (mode === 'architecture_analysis' && data) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50">
+        <ViewerHeader onBack={resetApp} />
+        <ErrorBoundary onReset={resetApp}>
+          <ArchitectureAnalysisViewer data={data} />
+        </ErrorBoundary>
+      </div>
+    );
+  }
 
   if (mode === 'plantuml' && rawText) {
     return (
@@ -576,18 +588,6 @@ function App() {
               <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
                 Select JSON File
                 <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'c4_architecture')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">☁️</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Cloud Readiness</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Evaluate cloud readiness score, 14 architectural factors, and 6R migration strategy recommendations.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'cloud')} className="hidden" />
               </label>
             </div>
           </div>
@@ -796,6 +796,32 @@ function App() {
               <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
                 Select JSON File
                 <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'cross_repo')} className="hidden" />
+              </label>
+            </div>
+          </div>
+
+          {/* Cloud Readiness Card */}
+          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
+            <div className="p-8 flex-grow flex flex-col items-center">
+              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">☁️</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Cloud Readiness</h2>
+              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Evaluate cloud readiness score, 14 architectural factors, and 6R migration strategy recommendations.</p>
+              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
+                Select JSON File
+                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'cloud')} className="hidden" />
+              </label>
+            </div>
+          </div>
+
+          {/* Architecture Analysis Card */}
+          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
+            <div className="p-8 flex-grow flex flex-col items-center">
+              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🏛️</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Architecture Analysis</h2>
+              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Visualize architecture style, microservice readiness, antipatterns and the architectural health checklist.</p>
+              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
+                Select JSON File
+                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'architecture_analysis')} className="hidden" />
               </label>
             </div>
           </div>

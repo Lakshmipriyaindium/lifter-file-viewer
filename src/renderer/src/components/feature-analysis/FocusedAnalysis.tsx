@@ -22,24 +22,24 @@ import {
 type ContextType = FileOperation['context'];
 const getContextText = (context: ContextType): string => {
   if (!context) return '';
-  
+
   // If it's already a string, return it
   if (typeof context === 'string') return context;
-  
+
   // If it's an object with the new format, extract the most relevant text
   if (typeof context === 'object') {
     // Prefer business_logic_summary as it contains the most comprehensive info
     if (context.business_logic_summary) return context.business_logic_summary;
-    
+
     // Otherwise concatenate available fields
     const parts: string[] = [];
     if (context.condition_context) parts.push(context.condition_context);
     if (context.control_flow) parts.push(context.control_flow);
     if (context.loop_context) parts.push(context.loop_context);
-    
+
     return parts.join(' ');
   }
-  
+
   return String(context);
 };
 
@@ -48,23 +48,23 @@ const getContextText = (context: ContextType): string => {
  */
 // const getFieldContextText = (field: any): string => {
 //   const parts: string[] = [];
-  
+
 //   // Add business reason if available
 //   if (field.business_reason) {
 //     parts.push(`Business Reason: ${field.business_reason}`);
 //   }
-  
+
 //   // Add business value if available
 //   if (field.business_value) {
 //     parts.push(`Business Value: ${field.business_value}`);
 //   }
-  
+
 //   // Add context
 //   const contextText = getContextText(field.context);
 //   if (contextText) {
 //     parts.push(contextText);
 //   }
-  
+
 //   return parts.join(' | ');
 // };
 
@@ -78,28 +78,28 @@ interface OperationBadgeProps {
   size?: 'sm' | 'md';
 }
 
-const OperationBadge: React.FC<OperationBadgeProps> = ({ 
-  operation, 
-  count, 
-  size = 'md' 
+const OperationBadge: React.FC<OperationBadgeProps> = ({
+  operation,
+  count,
+  size = 'md'
 }) => {
   const color = getOperationColor(operation);
-  const sizeClasses = size === 'sm' 
-    ? 'text-xs px-2 py-0.5' 
+  const sizeClasses = size === 'sm'
+    ? 'text-xs px-2 py-0.5'
     : 'text-sm px-3 py-1';
 
   return (
     <span
       className={`inline-flex items-center gap-1.5 font-mono font-semibold rounded-full ${sizeClasses}`}
-      style={{ 
-        backgroundColor: `${color}15`, 
+      style={{
+        backgroundColor: `${color}15`,
         color: color,
         border: `1px solid ${color}40`
       }}
     >
       {operation}
       {count !== undefined && (
-        <span 
+        <span
           className="font-bold rounded-full px-1.5 text-xs"
           style={{ backgroundColor: color, color: '#fff' }}
         >
@@ -124,10 +124,10 @@ interface ProgramCardPropsExtended extends ProgramCardProps {
   hideComments?: boolean;
 }
 
-const ProgramCard: React.FC<ProgramCardPropsExtended> = ({ 
-  program, 
-  focusedFile, 
-  isExpanded, 
+const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
+  program,
+  focusedFile,
+  isExpanded,
   onToggle,
   selectedOperations = new Set(),
   selectedFields = new Set(),
@@ -137,11 +137,11 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
   //unused hidecommands
   const [expandedFunctions, setExpandedFunctions] = useState<Set<number>>(new Set());
   const [programTab, setProgramTab] = useState<'operations' | 'fields' | 'summary'>('summary');
-  
+
   // Support both 'file_analyses' (legacy) and 'analyses' (new structure)
   const fileAnalyses = program.analyses || program.file_analyses || [];
   const fileAnalysis = fileAnalyses.find(f => f.file_name === focusedFile);
-  
+
   if (!fileAnalysis) return null;
 
   // Filter operations based on selected operations and hideComments
@@ -161,7 +161,7 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
   } else if (aliasFilter === 'non-alias') {
     filteredFields = filteredFields.filter(field => field.is_alias !== true);
   }
-  
+
   // Get field summaries if available
   const fieldSummaries = fileAnalysis.field_summary?.field_summaries || [];
   const filteredFieldSummaries = selectedFields.size > 0
@@ -187,18 +187,18 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
 
   return (
     <div className="program-card group">
-      <div 
+      <div
         className="program-card-header"
         onClick={onToggle}
       >
         <div className="flex items-start gap-4 flex-1 min-w-0">
           <div className="program-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-              <polyline points="14,2 14,8 20,8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <line x1="10" y1="9" x2="8" y2="9"/>
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+              <polyline points="14,2 14,8 20,8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <line x1="10" y1="9" x2="8" y2="9" />
             </svg>
           </div>
           <div className="flex-1 min-w-0">
@@ -210,16 +210,16 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
             {program.node_summary && <p className="program-summary">{program.node_summary}</p>}
           </div>
         </div>
-        
+
         <div className="flex flex-col items-end gap-2">
           <div className="flex flex-wrap gap-1.5 justify-end items-center">
             {/* Business Functions Indicator */}
             {fileAnalysis.business_functions && fileAnalysis.business_functions.length > 0 && (
               <span className="business-functions-indicator" title={`${fileAnalysis.business_functions.length} business function${fileAnalysis.business_functions.length !== 1 ? 's' : ''}`}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="3" y1="9" x2="21" y2="9"/>
-                  <line x1="9" y1="21" x2="9" y2="9"/>
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="9" y1="21" x2="9" y2="9" />
                 </svg>
                 {fileAnalysis.business_functions.length}
               </span>
@@ -231,21 +231,21 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
           <div className="program-meta">
             {program.node_line_start && program.node_line_end && (
               <>
-            <span>Lines {program.node_line_start}-{program.node_line_end}</span>
-            <span className="meta-separator">•</span>
+                <span>Lines {program.node_line_start}-{program.node_line_end}</span>
+                <span className="meta-separator">•</span>
               </>
             )}
             <span>{filteredFields.length} fields</span>
           </div>
         </div>
-        
+
         <div className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="6,9 12,15 18,9"/>
+            <polyline points="6,9 12,15 18,9" />
           </svg>
         </div>
       </div>
-      
+
       {isExpanded && (
         <div className="program-card-content p-2">
           {/* Program Summary */}
@@ -253,17 +253,17 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
             <div className="content-section program-summary-section mt-2">
               <h4 className="section-title">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14,2 14,8 20,8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/>
-                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
                 </svg>
                 Program Summary
               </h4>
               <p className="program-summary-text">{fileAnalysis.program_summary}</p>
             </div>
           )}
-          
+
           {/* Program Tabs */}
           <div className="program-tabs-container">
             <div className="program-tabs-header">
@@ -275,9 +275,9 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 7V4h16v3"/>
-                  <path d="M9 20h6"/>
-                  <path d="M12 4v16"/>
+                  <path d="M4 7V4h16v3" />
+                  <path d="M9 20h6" />
+                  <path d="M12 4v16" />
                 </svg>
                 Field Summary
                 {filteredFieldSummaries.length > 0 && (
@@ -292,11 +292,11 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="3" y1="9" x2="21" y2="9"/>
-                  <line x1="3" y1="15" x2="21" y2="15"/>
-                  <line x1="9" y1="3" x2="9" y2="21"/>
-                  <line x1="15" y1="3" x2="15" y2="21"/>
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="3" y1="15" x2="21" y2="15" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                  <line x1="15" y1="3" x2="15" y2="21" />
                 </svg>
                 Field Details
                 <span className="program-tab-count">{filteredFields.length}</span>
@@ -309,14 +309,14 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <polyline points="12,6 12,12 16,14"/>
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12,6 12,12 16,14" />
                 </svg>
                 File Operations
                 <span className="program-tab-count">{filteredOperations.length}</span>
               </button>
             </div>
-            
+
             <div className="program-tabs-content">
               {/* Field Summary Tab */}
               {programTab === 'summary' && filteredFieldSummaries.length > 0 && (
@@ -354,248 +354,248 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
                 </div>
               )}
 
-              
+
               {/* File Operations Tab */}
               {programTab === 'operations' && (
                 <>
                   {/* Business Functions Section - Accordion View */}
                   {fileAnalysis.business_functions && fileAnalysis.business_functions.length > 0 && (
-            <div className="content-section business-functions-section">
-              <h4 className="section-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="3" y1="9" x2="21" y2="9"/>
-                  <line x1="9" y1="21" x2="9" y2="9"/>
-                </svg>
-                Business Functions ({fileAnalysis.business_functions.length})
-              </h4>
-              <div className="business-functions-list">
-                {fileAnalysis.business_functions.map((func, funcIdx) => {
-                  const isFunctionExpanded = expandedFunctions.has(funcIdx);
-                  return (
-                    <div key={funcIdx} className="business-function-card">
-                      <div 
-                        className="business-function-header business-function-accordion-header"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFunction(funcIdx);
-                        }}
-                      >
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className={`function-expand-icon ${isFunctionExpanded ? 'expanded' : ''}`}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="6,9 12,15 18,9"/>
-                            </svg>
-                          </div>
-                          <h5 className="business-function-name">{func.function_name}</h5>
-                          <span className="business-function-badge">{func.co_operations.length} operation{func.co_operations.length !== 1 ? 's' : ''}</span>
-                        </div>
-                      </div>
-                      
-                      {isFunctionExpanded && (
-                        <div className="business-function-content">
-                          <p className="business-function-description">{func.business_description}</p>
-                          
-                          {/* CO Operations within this business function */}
-                          {func.co_operations.length > 0 && (
-                            <div className="co-operations-list">
-                              <h6 className="co-operations-title">File Operations:</h6>
-                              {func.co_operations.map((coOp, opIdx) => (
-                                <div key={opIdx} className="co-operation-item">
-                                  <div className="co-operation-header">
-                                    <OperationBadge operation={coOp.operation} size="sm" />
+                    <div className="content-section business-functions-section">
+                      <h4 className="section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <line x1="3" y1="9" x2="21" y2="9" />
+                          <line x1="9" y1="21" x2="9" y2="9" />
+                        </svg>
+                        Business Functions ({fileAnalysis.business_functions.length})
+                      </h4>
+                      <div className="business-functions-list">
+                        {fileAnalysis.business_functions.map((func, funcIdx) => {
+                          const isFunctionExpanded = expandedFunctions.has(funcIdx);
+                          return (
+                            <div key={funcIdx} className="business-function-card">
+                              <div
+                                className="business-function-header business-function-accordion-header"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFunction(funcIdx);
+                                }}
+                              >
+                                <div className="flex items-center gap-3 flex-1">
+                                  <div className={`function-expand-icon ${isFunctionExpanded ? 'expanded' : ''}`}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <polyline points="6,9 12,15 18,9" />
+                                    </svg>
                                   </div>
-                                  <div className="co-operation-details">
-                                    <p className="co-operation-reason">
-                                      <span className="detail-label">Business Reason:</span> {coOp.business_reason}
-                                    </p>
-                                    <p className="co-operation-requirements">
-                                      <span className="detail-label">Data Requirements:</span> {coOp.data_requirements}
-                                    </p>
-                                  </div>
+                                  <h5 className="business-function-name">{func.function_name}</h5>
+                                  <span className="business-function-badge">{func.co_operations.length} operation{func.co_operations.length !== 1 ? 's' : ''}</span>
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                              </div>
 
-                          {/* Business Rules for this function */}
-                          {func.business_rules.length > 0 && (
-                            <div className="function-business-rules">
-                              <h6 className="function-rules-title">Business Rules:</h6>
-                              <ul className="function-rules-list">
-                                {func.business_rules.map((rule, ruleIdx) => (
-                                  <li key={ruleIdx}>{rule}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                              {isFunctionExpanded && (
+                                <div className="business-function-content">
+                                  <p className="business-function-description">{func.business_description}</p>
 
-                          {/* Modernization Notes */}
-                          {/* {func.modernization_notes && (
+                                  {/* CO Operations within this business function */}
+                                  {func.co_operations.length > 0 && (
+                                    <div className="co-operations-list">
+                                      <h6 className="co-operations-title">File Operations:</h6>
+                                      {func.co_operations.map((coOp, opIdx) => (
+                                        <div key={opIdx} className="co-operation-item">
+                                          <div className="co-operation-header">
+                                            <OperationBadge operation={coOp.operation} size="sm" />
+                                          </div>
+                                          <div className="co-operation-details">
+                                            <p className="co-operation-reason">
+                                              <span className="detail-label">Business Reason:</span> {coOp.business_reason}
+                                            </p>
+                                            <p className="co-operation-requirements">
+                                              <span className="detail-label">Data Requirements:</span> {coOp.data_requirements}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Business Rules for this function */}
+                                  {func.business_rules.length > 0 && (
+                                    <div className="function-business-rules">
+                                      <h6 className="function-rules-title">Business Rules:</h6>
+                                      <ul className="function-rules-list">
+                                        {func.business_rules.map((rule, ruleIdx) => (
+                                          <li key={ruleIdx}>{rule}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+
+                                  {/* Modernization Notes */}
+                                  {/* {func.modernization_notes && (
                             <div className="modernization-notes">
                               <h6 className="modernization-title">💡 Modernization Notes</h6>
                               <p className="modernization-text">{func.modernization_notes}</p>
                             </div>
                           )} */}
-                        </div>
-                      )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+                  )}
 
-          {/* Detailed File Operations Section - Technical View */}
-          {filteredOperations.length > 0 && (
-          <div className="content-section">
-            <h4 className="section-title">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12,6 12,12 16,14"/>
-              </svg>
-                Detailed File Operations ({filteredOperations.length})
-            </h4>
-            <div className="operations-list">
-              {filteredOperations.map((op, idx) => (
-                <div key={idx} className="operation-item">
-                  <div className="operation-header">
-                    <OperationBadge operation={op.operation} size="sm" />
-                    <span className="line-number">Line {op.line_number}</span>
-                  </div>
-                  {op.business_reason && (
-                    <div className="operation-business-section">
-                      <span className="operation-label">Business Reason:</span>
-                      <p className="operation-text">{op.business_reason}</p>
+                  {/* Detailed File Operations Section - Technical View */}
+                  {filteredOperations.length > 0 && (
+                    <div className="content-section">
+                      <h4 className="section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" />
+                          <polyline points="12,6 12,12 16,14" />
+                        </svg>
+                        Detailed File Operations ({filteredOperations.length})
+                      </h4>
+                      <div className="operations-list">
+                        {filteredOperations.map((op, idx) => (
+                          <div key={idx} className="operation-item">
+                            <div className="operation-header">
+                              <OperationBadge operation={op.operation} size="sm" />
+                              <span className="line-number">Line {op.line_number}</span>
+                            </div>
+                            {op.business_reason && (
+                              <div className="operation-business-section">
+                                <span className="operation-label">Business Reason:</span>
+                                <p className="operation-text">{op.business_reason}</p>
+                              </div>
+                            )}
+                            {op.business_value && (
+                              <div className="operation-business-section">
+                                <span className="operation-label">Business Value:</span>
+                                <p className="operation-text">{op.business_value}</p>
+                              </div>
+                            )}
+                            {typeof op.context === 'object' && op.context !== null ? (
+                              <div className="context-detailed">
+                                {op.context.business_logic_summary && (
+                                  <div className="context-section">
+                                    <span className="context-label">Business Logic:</span>
+                                    <p className="context-text">{op.context.business_logic_summary}</p>
+                                  </div>
+                                )}
+                                {op.context.condition_context && (
+                                  <div className="context-section">
+                                    <span className="context-label">Condition Context:</span>
+                                    <p className="context-text">{op.context.condition_context}</p>
+                                  </div>
+                                )}
+                                {op.context.control_flow && (
+                                  <div className="context-section">
+                                    <span className="context-label">Control Flow:</span>
+                                    <p className="context-text">{op.context.control_flow}</p>
+                                  </div>
+                                )}
+                                {op.context.loop_context && (
+                                  <div className="context-section">
+                                    <span className="context-label">Loop Context:</span>
+                                    <p className="context-text">{op.context.loop_context}</p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="operation-context">{getContextText(op.context)}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
-                  {op.business_value && (
-                    <div className="operation-business-section">
-                      <span className="operation-label">Business Value:</span>
-                      <p className="operation-text">{op.business_value}</p>
-                    </div>
-                  )}
-                  {typeof op.context === 'object' && op.context !== null ? (
-                    <div className="context-detailed">
-                      {op.context.business_logic_summary && (
-                        <div className="context-section">
-                          <span className="context-label">Business Logic:</span>
-                          <p className="context-text">{op.context.business_logic_summary}</p>
-                        </div>
-                      )}
-                      {op.context.condition_context && (
-                        <div className="context-section">
-                          <span className="context-label">Condition Context:</span>
-                          <p className="context-text">{op.context.condition_context}</p>
-                        </div>
-                      )}
-                      {op.context.control_flow && (
-                        <div className="context-section">
-                          <span className="context-label">Control Flow:</span>
-                          <p className="context-text">{op.context.control_flow}</p>
-                        </div>
-                      )}
-                      {op.context.loop_context && (
-                        <div className="context-section">
-                          <span className="context-label">Loop Context:</span>
-                          <p className="context-text">{op.context.loop_context}</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="operation-context">{getContextText(op.context)}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-          )}
                 </>
               )}
-              
+
               {/* Fields Tab */}
               {programTab === 'fields' && filteredFields.length > 0 && (
-            <div className="content-section">
-              <h4 className="section-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 7V4h16v3"/>
-                  <path d="M9 20h6"/>
-                  <path d="M12 4v16"/>
-                </svg>
-                Fields Accessed ({filteredFields.length})
-              </h4>
-              <div className="fields-grid">
-                {filteredFields.map((field, idx) => (
-                  <div key={idx} className="field-card">
-                    <div className="field-header">
-                      <span className="field-number">#{field.field_number}</span>
-                      <span className="field-name">{field.field_name || 'unnamed'}</span>
-                      <span className="field-line">L{field.line_number}</span>
-                    </div>
-                    {field.business_reason && (
-                      <div className="field-business-section">
-                        <span className="field-label">Business Reason:</span>
-                        <p className="field-text">{field.business_reason}</p>
-                      </div>
-                    )}
-                    {field.business_value && (
-                      <div className="field-business-section">
-                        <span className="field-label">Business Value:</span>
-                        <p className="field-text">{field.business_value}</p>
-                      </div>
-                    )}
-                    {field.context && (
-                      typeof field.context === 'object' && field.context !== null ? (
-                        <div className="context-detailed">
-                          {field.context.business_logic_summary && (
-                            <div className="context-section">
-                              <span className="context-label">Business Logic:</span>
-                              <p className="context-text">{field.context.business_logic_summary}</p>
-                            </div>
-                          )}
-                          {field.context.condition_context && (
-                            <div className="context-section">
-                              <span className="context-label">Condition Context:</span>
-                              <p className="context-text">{field.context.condition_context}</p>
-                            </div>
-                          )}
-                          {field.context.control_flow && (
-                            <div className="context-section">
-                              <span className="context-label">Control Flow:</span>
-                              <p className="context-text">{field.context.control_flow}</p>
-                            </div>
-                          )}
-                          {field.context.loop_context && (
-                            <div className="context-section">
-                              <span className="context-label">Loop Context:</span>
-                              <p className="context-text">{field.context.loop_context}</p>
-                            </div>
-                          )}
+                <div className="content-section">
+                  <h4 className="section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 7V4h16v3" />
+                      <path d="M9 20h6" />
+                      <path d="M12 4v16" />
+                    </svg>
+                    Fields Accessed ({filteredFields.length})
+                  </h4>
+                  <div className="fields-grid">
+                    {filteredFields.map((field, idx) => (
+                      <div key={idx} className="field-card">
+                        <div className="field-header">
+                          <span className="field-number">#{field.field_number}</span>
+                          <span className="field-name">{field.field_name || 'unnamed'}</span>
+                          <span className="field-line">L{field.line_number}</span>
                         </div>
-                      ) : (
-                        <div className="field-context-section">
-                          <span className="field-label">Context:</span>
-                          <p className="field-context">{getContextText(field.context)}</p>
-                        </div>
-                      )
-                    )}
-                    {field.description && (
-                      <p className="field-description">{field.description}</p>
-                    )}
+                        {field.business_reason && (
+                          <div className="field-business-section">
+                            <span className="field-label">Business Reason:</span>
+                            <p className="field-text">{field.business_reason}</p>
+                          </div>
+                        )}
+                        {field.business_value && (
+                          <div className="field-business-section">
+                            <span className="field-label">Business Value:</span>
+                            <p className="field-text">{field.business_value}</p>
+                          </div>
+                        )}
+                        {field.context && (
+                          typeof field.context === 'object' && field.context !== null ? (
+                            <div className="context-detailed">
+                              {field.context.business_logic_summary && (
+                                <div className="context-section">
+                                  <span className="context-label">Business Logic:</span>
+                                  <p className="context-text">{field.context.business_logic_summary}</p>
+                                </div>
+                              )}
+                              {field.context.condition_context && (
+                                <div className="context-section">
+                                  <span className="context-label">Condition Context:</span>
+                                  <p className="context-text">{field.context.condition_context}</p>
+                                </div>
+                              )}
+                              {field.context.control_flow && (
+                                <div className="context-section">
+                                  <span className="context-label">Control Flow:</span>
+                                  <p className="context-text">{field.context.control_flow}</p>
+                                </div>
+                              )}
+                              {field.context.loop_context && (
+                                <div className="context-section">
+                                  <span className="context-label">Loop Context:</span>
+                                  <p className="context-text">{field.context.loop_context}</p>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="field-context-section">
+                              <span className="field-label">Context:</span>
+                              <p className="field-context">{getContextText(field.context)}</p>
+                            </div>
+                          )
+                        )}
+                        {field.description && (
+                          <p className="field-description">{field.description}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
               )}
             </div>
           </div>
-          
+
           {/* Additional Sections (shown for all tabs) */}
           {program.node_business_rules && program.node_business_rules.length > 0 && (
             <div className="content-section">
               <h4 className="section-title">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
                 Business Rules
               </h4>
@@ -612,8 +612,8 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
             <div className="content-section">
               <h4 className="section-title">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9,11 12,14 22,4"/>
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                  <polyline points="9,11 12,14 22,4" />
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                 </svg>
                 Validations
               </h4>
@@ -630,11 +630,11 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
             <div className="content-section">
               <h4 className="section-title">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="18" cy="5" r="3"/>
-                  <circle cx="6" cy="12" r="3"/>
-                  <circle cx="18" cy="19" r="3"/>
-                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
                 </svg>
                 Dependencies
               </h4>
@@ -651,9 +651,9 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
             <div className="content-section">
               <h4 className="section-title">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                  <polyline points="3.27,6.96 12,12.01 20.73,6.96"/>
-                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  <polyline points="3.27,6.96 12,12.01 20.73,6.96" />
+                  <line x1="12" y1="22.08" x2="12" y2="12" />
                 </svg>
                 Usage Patterns ({fileAnalysis.usage_patterns.length})
               </h4>
@@ -674,9 +674,9 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
           <div className="content-section business-purpose">
             <h4 className="section-title">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="16" x2="12" y2="12"/>
-                <line x1="12" y1="8" x2="12.01" y2="8"/>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
               </svg>
               Business Purpose
             </h4>
@@ -685,7 +685,7 @@ const ProgramCard: React.FC<ProgramCardPropsExtended> = ({
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .program-card {
           background: white;
           border: 1px solid #e5e7eb;
@@ -1527,7 +1527,7 @@ const SummaryStats: React.FC<SummaryStatsProps> = ({ data, focusedFile }) => {
         fileAnalysis.file_operations.forEach(op => {
           operationCounts[op.operation] = (operationCounts[op.operation] || 0) + 1;
         });
-        
+
         // Count business rules from business_functions (new structure)
         if (fileAnalysis.business_functions && fileAnalysis.business_functions.length > 0) {
           fileAnalysis.business_functions.forEach(func => {
@@ -1535,7 +1535,7 @@ const SummaryStats: React.FC<SummaryStatsProps> = ({ data, focusedFile }) => {
           });
         }
       }
-      
+
       // Also count legacy node_business_rules if they exist (for backward compatibility)
       totalRules += (program.node_business_rules || []).length;
     });
@@ -1558,8 +1558,8 @@ const SummaryStats: React.FC<SummaryStatsProps> = ({ data, focusedFile }) => {
       <div className="stat-card highlight">
         <div className="stat-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-            <polyline points="14,2 14,8 20,8"/>
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            <polyline points="14,2 14,8 20,8" />
           </svg>
         </div>
         <div className="stat-content">
@@ -1567,12 +1567,12 @@ const SummaryStats: React.FC<SummaryStatsProps> = ({ data, focusedFile }) => {
           <span className="stat-label">Programs</span>
         </div>
       </div>
-      
+
       <div className="stat-card">
         <div className="stat-icon blue">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12,6 12,12 16,14"/>
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12,6 12,12 16,14" />
           </svg>
         </div>
         <div className="stat-content">
@@ -1580,13 +1580,13 @@ const SummaryStats: React.FC<SummaryStatsProps> = ({ data, focusedFile }) => {
           <span className="stat-label">Operations</span>
         </div>
       </div>
-      
+
       <div className="stat-card">
         <div className="stat-icon purple">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 7V4h16v3"/>
-            <path d="M9 20h6"/>
-            <path d="M12 4v16"/>
+            <path d="M4 7V4h16v3" />
+            <path d="M9 20h6" />
+            <path d="M12 4v16" />
           </svg>
         </div>
         <div className="stat-content">
@@ -1594,17 +1594,17 @@ const SummaryStats: React.FC<SummaryStatsProps> = ({ data, focusedFile }) => {
           <span className="stat-label">Fields Accessed</span>
         </div>
       </div>
-      
-      
-      
+
+
+
       <div className="stat-card">
         <div className="stat-icon cyan">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="18" cy="5" r="3"/>
-            <circle cx="6" cy="12" r="3"/>
-            <circle cx="18" cy="19" r="3"/>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
           </svg>
         </div>
         <div className="stat-content">
@@ -1613,7 +1613,7 @@ const SummaryStats: React.FC<SummaryStatsProps> = ({ data, focusedFile }) => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .summary-stats {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -1711,7 +1711,7 @@ interface OperationDistributionProps {
 const OperationDistribution: React.FC<OperationDistributionProps> = ({ data, focusedFile }) => {
   const distribution = useMemo(() => {
     const counts: Record<string, { count: number; programs: Set<string> }> = {};
-    
+
     data.analyses.forEach(program => {
       const fileAnalyses = program.analyses || program.file_analyses || [];
       const fileAnalysis = fileAnalyses.find(f => f.file_name === focusedFile);
@@ -1727,7 +1727,7 @@ const OperationDistribution: React.FC<OperationDistributionProps> = ({ data, foc
     });
 
     const total = Object.values(counts).reduce((sum, { count }) => sum + count, 0);
-    
+
     return Object.entries(counts)
       .map(([operation, { count, programs }]) => ({
         operation,
@@ -1750,9 +1750,9 @@ const OperationDistribution: React.FC<OperationDistributionProps> = ({ data, foc
               <OperationBadge operation={item.operation} size="sm" />
             </div>
             <div className="bar-track">
-              <div 
+              <div
                 className="bar-fill"
-                style={{ 
+                style={{
                   width: `${(item.count / maxCount) * 100}%`,
                   backgroundColor: item.color,
                   animationDelay: `${idx * 0.1}s`
@@ -1767,7 +1767,7 @@ const OperationDistribution: React.FC<OperationDistributionProps> = ({ data, foc
         ))}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .operation-distribution {
           width: 100%;
         }
@@ -1850,7 +1850,7 @@ interface FieldUsageMatrixProps {
 const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }) => {
   const [selectedFieldsFilter, setSelectedFieldsFilter] = useState<Set<string>>(new Set());
   const [fieldSearchQuery, setFieldSearchQuery] = useState('');
-  
+
   // Get field summary from the first program that has it (they should all have the same field_summary)
   const fieldSummaryData = useMemo(() => {
     for (const program of data.analyses) {
@@ -1868,8 +1868,8 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
     if (fieldSummaryData?.field_summaries) {
       return fieldSummaryData.field_summaries.map(fieldSummary => {
         // Find programs that use this field
-        const usedByPrograms: Array<{ program: string; lineNumber: number; context: ContextType}> = [];
-        
+        const usedByPrograms: Array<{ program: string; lineNumber: number; context: ContextType }> = [];
+
         data.analyses.forEach(program => {
           const fileAnalyses = program.analyses || program.file_analyses || [];
           const fileAnalysis = fileAnalyses.find(f => f.file_name === focusedFile);
@@ -1898,10 +1898,10 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
         };
       }).sort((a, b) => parseInt(a.fieldNumber) - parseInt(b.fieldNumber));
     }
-    
+
     // Fallback to old format
     const usage: Record<string, FieldUsageSummary> = {};
-    
+
     data.analyses.forEach(program => {
       const fileAnalyses = program.analyses || program.file_analyses || [];
       const fileAnalysis = fileAnalyses.find(f => f.file_name === focusedFile);
@@ -1925,13 +1925,13 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
       }
     });
 
-    return Object.values(usage).sort((a, b) => 
+    return Object.values(usage).sort((a, b) =>
       parseInt(a.fieldNumber) - parseInt(b.fieldNumber)
     );
   }, [data, focusedFile, fieldSummaryData]);
 
   const [expandedFields, setExpandedFields] = useState<Set<string>>(new Set());
-  
+
   const toggleFieldExpansion = (fieldNumber: string) => {
     setExpandedFields(prev => {
       const next = new Set(prev);
@@ -1943,7 +1943,7 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
       return next;
     });
   };
-  
+
   const toggleFieldFilter = (fieldNumber: string) => {
     setSelectedFieldsFilter(prev => {
       const next = new Set(prev);
@@ -1955,14 +1955,14 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
       return next;
     });
   };
-  
+
   // Filter field usage based on search and selected fields
   const filteredFieldUsage = fieldUsage.filter((field: FocusedFieldUsageSummary) => {
     // Filter by selected fields
     if (selectedFieldsFilter.size > 0 && !selectedFieldsFilter.has(field.fieldNumber)) {
       return false;
     }
-    
+
     // Filter by search query
     if (fieldSearchQuery) {
       const query = fieldSearchQuery.toLowerCase();
@@ -1973,10 +1973,10 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
         (field.description && field.description.toLowerCase().includes(query))
       );
     }
-    
+
     return true;
   });
-  
+
   if (fieldUsage.length === 0) return null;
 
   return (
@@ -1985,8 +1985,8 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
       <div className="field-matrix-filters">
         <div className="field-matrix-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             type="text"
@@ -1995,7 +1995,7 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
             onChange={(e) => setFieldSearchQuery(e.target.value)}
           />
         </div>
-        
+
         <div className="field-matrix-field-filter">
           <span className="filter-label-text">Filter Fields:</span>
           <div className="field-matrix-filter-buttons">
@@ -2023,15 +2023,15 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
           )}
         </div>
       </div>
-      
+
       <div className="matrix-grid">
         {filteredFieldUsage.map((field: FocusedFieldUsageSummary) => {
           const isExpanded = expandedFields.has(field.fieldNumber);
           const hasRichData = field.businessLabel || field.businessRules || field.programMeaning;
-          
+
           return (
             <div key={field.fieldNumber} className="field-usage-card">
-              <div 
+              <div
                 className="field-header clickable"
                 onClick={() => hasRichData && toggleFieldExpansion(field.fieldNumber)}
                 style={{ cursor: hasRichData ? 'pointer' : 'default' }}
@@ -2047,16 +2047,16 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
                 {hasRichData && (
                   <div className={`field-expand-icon ${isExpanded ? 'expanded' : ''}`}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="6,9 12,15 18,9"/>
+                      <polyline points="6,9 12,15 18,9" />
                     </svg>
                   </div>
                 )}
               </div>
-              
+
               {field.description && (
                 <p className="field-desc">{field.description}</p>
               )}
-              
+
               {isExpanded && hasRichData && (
                 <div className="field-rich-content">
                   {field.programMeaning && (
@@ -2065,7 +2065,7 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
                       <p className="field-section-text">{field.programMeaning}</p>
                     </div>
                   )}
-                  
+
                   {field.businessRules && field.businessRules.length > 0 && (
                     <div className="field-section">
                       <span className="field-section-title">Business Rules ({field.businessRules.length})</span>
@@ -2076,7 +2076,7 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
                       </ul>
                     </div>
                   )}
-                  
+
                   {field.totalAccesses !== undefined && (
                     <div className="field-section">
                       <span className="field-section-title">Total Accesses: {field.totalAccesses}</span>
@@ -2084,7 +2084,7 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
                   )}
                 </div>
               )}
-              
+
               <div className="program-tags">
                 {field.usedBy.map((usage: FieldUsageSummary['usedBy'][number], idx: number) => (
                   <span key={idx} className="program-tag" title={getContextText(usage.context)}>
@@ -2098,7 +2098,7 @@ const FieldUsageMatrix: React.FC<FieldUsageMatrixProps> = ({ data, focusedFile }
         })}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .field-usage-matrix {
           width: 100%;
         }
@@ -2394,15 +2394,15 @@ interface FocusedFeatureAnalysisProps {
   title?: string;
 }
 
-export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({ 
-  data: rawData, 
+export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
+  data: rawData,
   focusedFile = 'CO',
   title = 'Data File Focused Analysis'
 }) => {
   const data = useMemo(() => ({
     ...rawData,
     analyses: rawData?.analyses || [],
-    program_analysis: rawData?.program_analysis || {}
+    // program_analysis: rawData?.program_analysis || {}
   }), [rawData]);
   const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
@@ -2478,7 +2478,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
         });
       }
     });
-    return Array.from(fieldsMap.values()).sort((a, b) => 
+    return Array.from(fieldsMap.values()).sort((a, b) =>
       parseInt(a.fieldNumber) - parseInt(b.fieldNumber)
     );
   }, [data, focusedFile]);
@@ -2489,38 +2489,38 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
       const fileAnalysis = fileAnalyses.find(f => f.file_name === focusedFile);
       const hasFile = fileAnalyses.some(f => f.file_name === focusedFile);
       if (!hasFile) return false;
-      
+
       // Filter by business functions if enabled
       if (showOnlyWithBusinessFunctions) {
         if (!fileAnalysis || !fileAnalysis.business_functions || fileAnalysis.business_functions.length === 0) {
           return false;
         }
       }
-      
+
       // Filter by selected operations
       if (selectedOperations.size > 0 && fileAnalysis) {
         const programOperations = new Set(
           fileAnalysis.file_operations.map(op => op.operation)
         );
         // Check if program has at least one of the selected operations
-        const hasSelectedOperation = Array.from(selectedOperations).some(op => 
+        const hasSelectedOperation = Array.from(selectedOperations).some(op =>
           programOperations.has(op)
         );
         if (!hasSelectedOperation) return false;
       }
-      
+
       // Filter by selected fields
       if (selectedFields.size > 0 && fileAnalysis) {
         const programFields = new Set(
           fileAnalysis.fields_accessed.map(field => field.field_number)
         );
         // Check if program has at least one of the selected fields
-        const hasSelectedField = Array.from(selectedFields).some(fieldNum => 
+        const hasSelectedField = Array.from(selectedFields).some(fieldNum =>
           programFields.has(fieldNum)
         );
         if (!hasSelectedField) return false;
       }
-      
+
       // Filter by alias setting
       if (aliasFilter === 'alias-only' && fileAnalysis) {
         const hasAliasField = fileAnalysis.fields_accessed.some(field => field.is_alias === true);
@@ -2529,9 +2529,9 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
         const hasNonAliasField = fileAnalysis.fields_accessed.some(field => field.is_alias !== true);
         if (!hasNonAliasField) return false;
       }
-      
+
       if (!searchQuery) return true;
-      
+
       const query = searchQuery.toLowerCase();
       return (
         program.source_file_name.toLowerCase().includes(query) ||
@@ -2583,7 +2583,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
   // Export to Excel
   const exportToExcel = () => {
     const workbook = XLSX.utils.book_new();
-    
+
     // Get field summary data if available
     const fieldSummaryData = (() => {
       for (const program of filteredPrograms) {
@@ -2595,44 +2595,44 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
       }
       return null;
     })();
-    
+
     // Collect all unique fields across all programs (respecting filters)
-    const fieldsMap = new Map<string, { 
-      fieldNumber: string; 
-      fieldName: string; 
+    const fieldsMap = new Map<string, {
+      fieldNumber: string;
+      fieldName: string;
       businessLabel?: string;
-      description: string; 
+      description: string;
       businessRules?: string[];
       programMeaning?: string;
       totalAccesses?: number;
       programs: ProgramReference[];
     }>();
-    
+
     filteredPrograms.forEach(program => {
       const fileAnalyses = program.analyses || program.file_analyses || [];
       const fileAnalysis = fileAnalyses.find(f => f.file_name === focusedFile);
       if (fileAnalysis) {
         // Filter fields based on selectedFields and aliasFilter
         let fieldsToExport = fileAnalysis.fields_accessed;
-        
+
         // Apply selectedFields filter
         if (selectedFields.size > 0) {
           fieldsToExport = fieldsToExport.filter(field => selectedFields.has(field.field_number));
         }
-        
+
         // Apply alias filter
         if (aliasFilter === 'alias-only') {
           fieldsToExport = fieldsToExport.filter(field => field.is_alias === true);
         } else if (aliasFilter === 'non-alias') {
           fieldsToExport = fieldsToExport.filter(field => field.is_alias !== true);
         }
-          
+
         fieldsToExport.forEach(field => {
           const key = field.field_number;
           if (!fieldsMap.has(key)) {
             // Get field summary info if available
             const fieldSummary = fieldSummaryData?.field_summaries.find(fs => fs.field_number === field.field_number);
-            
+
             fieldsMap.set(key, {
               fieldNumber: field.field_number,
               fieldName: field.field_name || 'unnamed',
@@ -2646,7 +2646,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
           }
           // Extract all context fields
           const contextObj = typeof field.context === 'object' && field.context !== null ? field.context : {};
-          
+
           fieldsMap.get(key)!.programs.push({
             programName: program.source_file_name,
             programTitle: program.node_title || '',
@@ -2666,7 +2666,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
     });
 
     // Sort fields by field number
-    const sortedFields = Array.from(fieldsMap.values()).sort((a, b) => 
+    const sortedFields = Array.from(fieldsMap.values()).sort((a, b) =>
       parseInt(a.fieldNumber) - parseInt(b.fieldNumber)
     );
 
@@ -2712,23 +2712,23 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
         [`Field #${field.fieldNumber}: ${field.fieldName}`],
         ['']
       ];
-      
+
       // Add business label if available
       if (field.businessLabel) {
         fieldSheetData.push(['Business Label:', field.businessLabel]);
         fieldSheetData.push(['']);
       }
-      
+
       // Add field description
       fieldSheetData.push(['Field Description:', truncateForExcel(field.description)]);
       fieldSheetData.push(['']);
-      
+
       // Add field summary if available
       if (field.programMeaning) {
         fieldSheetData.push(['Field Summary:', truncateForExcel(field.programMeaning)]);
         fieldSheetData.push(['']);
       }
-      
+
       // Add business rules if available
       if (field.businessRules && field.businessRules.length > 0) {
         fieldSheetData.push(['Business Rules:']);
@@ -2737,13 +2737,13 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
         });
         fieldSheetData.push(['']);
       }
-      
+
       // Add total accesses if available
       if (field.totalAccesses !== undefined) {
         fieldSheetData.push(['Total Field Accesses:', String(field.totalAccesses)]);
         fieldSheetData.push(['']);
       }
-      
+
       // Add filters applied
       fieldSheetData.push(['Filters Applied:']);
       if (aliasFilter !== 'all') {
@@ -2751,7 +2751,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
       }
       if (hideComments) fieldSheetData.push(['', 'Comments Hidden: Yes']);
       if (aliasFilter !== 'all' || hideComments) fieldSheetData.push(['']);
-      
+
       fieldSheetData.push(['Usage Details in Programs']);
       fieldSheetData.push(['Program Name', 'Program Title', 'Program Summary', 'Line Number', 'Business Reason', 'Business Value', 'Business Logic Summary', 'Condition Context', 'Control Flow', 'Loop Context', 'Context (Legacy)', 'Is Alias']);
 
@@ -2764,7 +2764,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
           truncateForExcel(prog.businessReason || ''),
           truncateForExcel(prog.businessValue || ''),
           truncateForExcel(prog.businessLogic || ''),
-          truncateForExcel(prog.conditionContext|| ''),
+          truncateForExcel(prog.conditionContext || ''),
           truncateForExcel(prog.controlFlow || ''),
           truncateForExcel(prog.loopContext || ''),
           truncateForExcel(prog.contextText || ''),
@@ -2773,7 +2773,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
       });
 
       const fieldSheet = XLSX.utils.aoa_to_sheet(fieldSheetData);
-      
+
       // Sanitize sheet name (Excel has 31 char limit and doesn't allow certain characters)
       const sheetName = `${field.fieldNumber}-${field.fieldName}`.substring(0, 31).replace(/[:\\/?*\[\]]/g, '_');
       XLSX.utils.book_append_sheet(workbook, fieldSheet, sheetName);
@@ -2797,43 +2797,43 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
       }
       return null;
     })();
-    
+
     // Collect unique fields (same logic as Excel export)
-    const fieldsMap = new Map<string, { 
-      fieldNumber: string; 
-      fieldName: string; 
+    const fieldsMap = new Map<string, {
+      fieldNumber: string;
+      fieldName: string;
       businessLabel?: string;
-      description: string; 
+      description: string;
       businessRules?: string[];
       programMeaning?: string;
       totalAccesses?: number;
       programs: ProgramReference[];
     }>();
-    
+
     filteredPrograms.forEach(program => {
       const fileAnalyses = program.analyses || program.file_analyses || [];
       const fileAnalysis = fileAnalyses.find(f => f.file_name === focusedFile);
       if (fileAnalysis) {
         // Filter fields based on selectedFields and aliasFilter
         let fieldsToExport = fileAnalysis.fields_accessed;
-        
+
         // Apply selectedFields filter
         if (selectedFields.size > 0) {
           fieldsToExport = fieldsToExport.filter(field => selectedFields.has(field.field_number));
         }
-        
+
         // Apply alias filter
         if (aliasFilter === 'alias-only') {
           fieldsToExport = fieldsToExport.filter(field => field.is_alias === true);
         } else if (aliasFilter === 'non-alias') {
           fieldsToExport = fieldsToExport.filter(field => field.is_alias !== true);
         }
-          
+
         fieldsToExport.forEach(field => {
           const key = field.field_number;
           if (!fieldsMap.has(key)) {
             const fieldSummary = fieldSummaryData?.field_summaries.find(fs => fs.field_number === field.field_number);
-            
+
             fieldsMap.set(key, {
               fieldNumber: field.field_number,
               fieldName: field.field_name || 'unnamed',
@@ -2846,7 +2846,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
             });
           }
           const contextObj = typeof field.context === 'object' && field.context !== null ? field.context : {};
-          
+
           fieldsMap.get(key)!.programs.push({
             programName: program.source_file_name,
             programTitle: program.node_title || '',
@@ -2860,14 +2860,14 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
       }
     });
 
-    const sortedFields = Array.from(fieldsMap.values()).sort((a, b) => 
+    const sortedFields = Array.from(fieldsMap.values()).sort((a, b) =>
       parseInt(a.fieldNumber) - parseInt(b.fieldNumber)
     );
-    
+
     let markdown = `# Field Analysis Report\n\n`;
     markdown += `**File Name:** ${focusedFile}\n\n`;
     markdown += `**Generated Date:** ${new Date().toLocaleString()}\n\n`;
-    
+
     // Filters
     markdown += `## Filters Applied\n\n`;
     markdown += `- **Field Filters:** ${selectedFields.size > 0 ? `Yes (${selectedFields.size} selected)` : 'No'}\n`;
@@ -2887,17 +2887,17 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
     // Fields (one section per field)
     sortedFields.forEach((field, idx) => {
       markdown += `## Field ${idx + 1}: #${field.fieldNumber} - ${field.fieldName}\n\n`;
-      
+
       if (field.businessLabel) {
         markdown += `**Business Label:** ${field.businessLabel}\n\n`;
       }
-      
+
       markdown += `**Description:** ${field.description}\n\n`;
-      
+
       if (field.programMeaning) {
         markdown += `**Field Summary:**\n\n${field.programMeaning}\n\n`;
       }
-      
+
       if (field.businessRules && field.businessRules.length > 0) {
         markdown += `**Business Rules:**\n\n`;
         field.businessRules.forEach(rule => {
@@ -2905,11 +2905,11 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
         });
         markdown += `\n`;
       }
-      
+
       if (field.totalAccesses !== undefined) {
         markdown += `**Total Accesses:** ${field.totalAccesses}\n\n`;
       }
-      
+
       markdown += `### Programs Using This Field\n\n`;
       markdown += `| Program | Line | Business Reason | Business Value | Alias |\n`;
       markdown += `|---------|------|-----------------|----------------|-------|\n`;
@@ -2944,43 +2944,43 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
       }
       return null;
     })();
-    
+
     // Collect unique fields (same logic as Excel/Markdown)
-    const fieldsMap = new Map<string, { 
-      fieldNumber: string; 
-      fieldName: string; 
+    const fieldsMap = new Map<string, {
+      fieldNumber: string;
+      fieldName: string;
       businessLabel?: string;
-      description: string; 
+      description: string;
       businessRules?: string[];
       programMeaning?: string;
       totalAccesses?: number;
       programs: ProgramReference[];
     }>();
-    
+
     filteredPrograms.forEach(program => {
       const fileAnalyses = program.analyses || program.file_analyses || [];
       const fileAnalysis = fileAnalyses.find(f => f.file_name === focusedFile);
       if (fileAnalysis) {
         // Filter fields based on selectedFields and aliasFilter (matching Excel/Markdown)
         let fieldsToExport = fileAnalysis.fields_accessed;
-        
+
         // Apply selectedFields filter
         if (selectedFields.size > 0) {
           fieldsToExport = fieldsToExport.filter(field => selectedFields.has(field.field_number));
         }
-        
+
         // Apply alias filter
         if (aliasFilter === 'alias-only') {
           fieldsToExport = fieldsToExport.filter(field => field.is_alias === true);
         } else if (aliasFilter === 'non-alias') {
           fieldsToExport = fieldsToExport.filter(field => field.is_alias !== true);
         }
-          
+
         fieldsToExport.forEach(field => {
           const key = field.field_number;
           if (!fieldsMap.has(key)) {
             const fieldSummary = fieldSummaryData?.field_summaries.find(fs => fs.field_number === field.field_number);
-            
+
             fieldsMap.set(key, {
               fieldNumber: field.field_number,
               fieldName: field.field_name || 'unnamed',
@@ -2993,7 +2993,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
             });
           }
           const contextObj = typeof field.context === 'object' && field.context !== null ? field.context : {};
-          
+
           fieldsMap.get(key)!.programs.push({
             programName: program.source_file_name,
             programTitle: program.node_title || '',
@@ -3007,23 +3007,23 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
       }
     });
 
-    const sortedFields = Array.from(fieldsMap.values()).sort((a, b) => 
+    const sortedFields = Array.from(fieldsMap.values()).sort((a, b) =>
       parseInt(a.fieldNumber) - parseInt(b.fieldNumber)
     );
-    
+
     const stats = {
       programs: filteredPrograms.length,
       fields: sortedFields.length,
       accesses: sortedFields.reduce((sum, f) => sum + f.programs.length, 0),
     };
-    
+
     const escapeHtml = (text: string) => {
       if (!text) return '';
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     };
-    
+
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -3968,9 +3968,9 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
         <div className="header-content">
           <div className="header-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <ellipse cx="12" cy="5" rx="9" ry="3"/>
-              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+              <ellipse cx="12" cy="5" rx="9" ry="3" />
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
             </svg>
           </div>
           <div>
@@ -3980,12 +3980,12 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
             </p>
           </div>
         </div>
-        
+
         <div className="header-actions">
           <div className="search-box">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
               type="text"
@@ -3997,47 +3997,47 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
           <div className="export-buttons">
             <button className="export-btn excel" onClick={exportToExcel} title="Export to Excel">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14,2 14,8 20,8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10,9 9,9 8,9"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14,2 14,8 20,8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10,9 9,9 8,9" />
               </svg>
               Export Excel
             </button>
             <button className="export-btn markdown" onClick={exportToMarkdown} title="Export to Markdown">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14,2 14,8 20,8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10,9 9,9 8,9"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14,2 14,8 20,8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10,9 9,9 8,9" />
               </svg>
               Export Markdown
             </button>
             <button className="export-btn html" onClick={exportToHTML} title="Export to Interactive HTML">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="16 18 22 12 16 6"/>
-                <polyline points="8 6 2 12 8 18"/>
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
               </svg>
               Export HTML
             </button>
           </div>
           <button className="action-btn" onClick={expandAll}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15,3 21,3 21,9"/>
-              <polyline points="9,21 3,21 3,15"/>
-              <line x1="21" y1="3" x2="14" y2="10"/>
-              <line x1="3" y1="21" x2="10" y2="14"/>
+              <polyline points="15,3 21,3 21,9" />
+              <polyline points="9,21 3,21 3,15" />
+              <line x1="21" y1="3" x2="14" y2="10" />
+              <line x1="3" y1="21" x2="10" y2="14" />
             </svg>
             Expand All
           </button>
           <button className="action-btn" onClick={collapseAll}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="4,14 10,14 10,20"/>
-              <polyline points="20,10 14,10 14,4"/>
-              <line x1="14" y1="10" x2="21" y2="3"/>
-              <line x1="3" y1="21" x2="10" y2="14"/>
+              <polyline points="4,14 10,14 10,20" />
+              <polyline points="20,10 14,10 14,4" />
+              <line x1="14" y1="10" x2="21" y2="3" />
+              <line x1="3" y1="21" x2="10" y2="14" />
             </svg>
             Collapse All
           </button>
@@ -4055,9 +4055,9 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
             onClick={() => setActiveTab('operations')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="20" x2="18" y2="10"/>
-              <line x1="12" y1="20" x2="12" y2="4"/>
-              <line x1="6" y1="20" x2="6" y2="14"/>
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
             </svg>
             Operation Distribution
           </button>
@@ -4066,11 +4066,11 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
             onClick={() => setActiveTab('fields')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <line x1="3" y1="9" x2="21" y2="9"/>
-              <line x1="3" y1="15" x2="21" y2="15"/>
-              <line x1="9" y1="3" x2="9" y2="21"/>
-              <line x1="15" y1="3" x2="15" y2="21"/>
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="3" y1="15" x2="21" y2="15" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+              <line x1="15" y1="3" x2="15" y2="21" />
             </svg>
             Field Usage Across Programs
           </button>
@@ -4079,8 +4079,8 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
             onClick={() => setActiveTab('programs')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-              <polyline points="14,2 14,8 20,8"/>
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+              <polyline points="14,2 14,8 20,8" />
             </svg>
             Program Analysis
             <span className="tab-badge">{filteredPrograms.length}</span>
@@ -4109,9 +4109,9 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
                     title="Show only programs with business functions"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                      <line x1="3" y1="9" x2="21" y2="9"/>
-                      <line x1="9" y1="21" x2="9" y2="9"/>
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <line x1="3" y1="9" x2="21" y2="9" />
+                      <line x1="9" y1="21" x2="9" y2="9" />
                     </svg>
                     <span>Show only with Business Functions</span>
                     {showOnlyWithBusinessFunctions && (
@@ -4119,12 +4119,12 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
                     )}
                   </button>
                 </div>
-                
+
                 <div className="filter-group operations-filter">
                   <div className="operations-filter-label">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10"/>
-                      <polyline points="12,6 12,12 16,14"/>
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12,6 12,12 16,14" />
                     </svg>
                     <span>Filter by Operations:</span>
                   </div>
@@ -4146,21 +4146,21 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
                         title="Clear operation filters"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <line x1="18" y1="6" x2="6" y2="18"/>
-                          <line x1="6" y1="6" x2="18" y2="18"/>
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
                         </svg>
                         Clear ({selectedOperations.size})
                       </button>
                     )}
                   </div>
                 </div>
-                
+
                 <div className="filter-group operations-filter">
                   <div className="operations-filter-label">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M4 7V4h16v3"/>
-                      <path d="M9 20h6"/>
-                      <path d="M12 4v16"/>
+                      <path d="M4 7V4h16v3" />
+                      <path d="M9 20h6" />
+                      <path d="M12 4v16" />
                     </svg>
                     <span>Filter by Fields:</span>
                   </div>
@@ -4186,15 +4186,15 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
                         title="Clear field filters"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <line x1="18" y1="6" x2="6" y2="18"/>
-                          <line x1="6" y1="6" x2="18" y2="18"/>
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
                         </svg>
                         Clear ({selectedFields.size})
                       </button>
                     )}
                   </div>
                 </div>
-                
+
                 <div className="filter-group">
                   <div className="alias-filter-group">
                     <span className="filter-label">Alias Filter:</span>
@@ -4211,7 +4211,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
                       title="Show only alias fields"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="17 11 19 13 23 9"/>
+                        <polyline points="17 11 19 13 23 9" />
                       </svg>
                       Alias Only
                     </button>
@@ -4221,21 +4221,21 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
                       title="Exclude alias fields"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
                       </svg>
                       Non-Alias
                     </button>
                   </div>
-                  
+
                   <button
                     className={`filter-toggle ${hideComments ? 'active' : ''}`}
                     onClick={() => setHideComments(!hideComments)}
                     title="Hide comment-only field accesses"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                      {hideComments && <line x1="3" y1="3" x2="21" y2="21" strokeWidth="3"/>}
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      {hideComments && <line x1="3" y1="3" x2="21" y2="21" strokeWidth="3" />}
                     </svg>
                     <span>{hideComments ? 'Comments Hidden' : 'Show Comments'}</span>
                   </button>
@@ -4245,9 +4245,9 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
                 {filteredPrograms.length === 0 ? (
                   <div className="empty-state">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10"/>
-                      <line x1="12" y1="8" x2="12" y2="12"/>
-                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
                     <p className="empty-state-text">
                       {showOnlyWithBusinessFunctions || selectedOperations.size > 0 || selectedFields.size > 0 || aliasFilter !== 'all'
@@ -4257,17 +4257,17 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
                   </div>
                 ) : (
                   filteredPrograms.map((program) => (
-                  <ProgramCard
-                    key={program.source_file_name}
-                    program={program}
-                    focusedFile={focusedFile}
-                    isExpanded={expandedPrograms.has(program.source_file_name)}
-                    onToggle={() => toggleProgram(program.source_file_name)}
-                    selectedOperations={selectedOperations}
-                    selectedFields={selectedFields}
-                    aliasFilter={aliasFilter}
-                    hideComments={hideComments}
-                  />
+                    <ProgramCard
+                      key={program.source_file_name}
+                      program={program}
+                      focusedFile={focusedFile}
+                      isExpanded={expandedPrograms.has(program.source_file_name)}
+                      onToggle={() => toggleProgram(program.source_file_name)}
+                      selectedOperations={selectedOperations}
+                      selectedFields={selectedFields}
+                      aliasFilter={aliasFilter}
+                      hideComments={hideComments}
+                    />
                   ))
                 )}
               </div>
@@ -4276,7 +4276,7 @@ export const FocusedFeatureAnalysis: React.FC<FocusedFeatureAnalysisProps> = ({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .feature-analysis-container {
           min-height: 100vh;
           background: #f9fafb;

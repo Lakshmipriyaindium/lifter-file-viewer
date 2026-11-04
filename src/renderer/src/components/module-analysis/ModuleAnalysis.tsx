@@ -72,7 +72,7 @@ export interface ModuleAnalysisData {
 }
 
 export interface ModuleAnalysisProps {
-    data: ModuleAnalysisData;
+  data: ModuleAnalysisData;
 }
 
 const BRAND_COLOR = '#fb851e';
@@ -97,19 +97,20 @@ const countTotalFeaturesInProject = (project: Project): number => {
 const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => {
   const data = useMemo(() => {
     // Check if it's the legacy tb_module_analysis.json format
-    if (rawData?.domains && rawData?.business_features_l1) {
-      const domainsData = rawData.business_features_l1;
-      
+    const legacyRaw = rawData as any;
+    if (legacyRaw?.domains && legacyRaw?.business_features_l1) {
+      const domainsData = legacyRaw.business_features_l1;
+
       const mappedDomains: L1Domain[] = Object.entries(domainsData).map(([domainName, featuresObj]: [string, any]) => {
         const featuresList: L2Feature[] = Object.entries(featuresObj).map(([featureName, featureData]: [string, any]) => {
           const files = featureData.files || [];
-          
+
           const l3Components: L3Component[] = files.map((f: any) => ({
             l3_component: f.filename || f.name || "Unknown File",
             l3_description: f.relative_path || f.path || "Unknown Path",
             related_files: [f.filename || f.name || f]
           }));
-          
+
           return {
             l2_feature: featureName,
             l2_description: "",
@@ -118,7 +119,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
             ]
           };
         });
-        
+
         return {
           l1_domain: domainName,
           l1_description: `Domain containing ${featuresList.length} features`,
@@ -131,7 +132,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
       let fileCount = 0;
       const topDomains: Record<string, number> = {};
       const topFeatures: Record<string, number> = {};
-      
+
       mappedDomains.forEach(d => {
         featureCount += d.l2_features.length;
         topDomains[d.l1_domain] = d.l2_features.length;
@@ -141,17 +142,17 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
         });
       });
 
-      if (rawData.summary?.total_files) {
-         fileCount = rawData.summary.total_files;
+      if (legacyRaw.summary?.total_files) {
+        fileCount = legacyRaw.summary.total_files;
       }
-      
+
       const singleProject: Project = {
         project_name: "Legacy Codebase Analysis",
         analysis_date: rawData.consolidation_date || new Date().toISOString(),
         technology_stack: ["COBOL", "JCL", "Legacy"],
         business_features: mappedDomains
       };
-      
+
       return {
         consolidation_date: rawData.consolidation_date || new Date().toISOString(),
         source_directory: "legacy_analysis_root",
@@ -161,29 +162,29 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
           total_projects_analyzed: 1,
           projects_with_errors: 0,
           projects_successfully_analyzed: 1,
-          technology_analysis: { 
-            unique_technologies: 3, 
-            total_technology_references: 3, 
-            top_technologies: { "COBOL": 1, "JCL": 1, "Legacy": 1 }, 
-            projects_by_technology_count: { "3": 1 } 
+          technology_analysis: {
+            unique_technologies: 3,
+            total_technology_references: 3,
+            top_technologies: { "COBOL": 1, "JCL": 1, "Legacy": 1 },
+            projects_by_technology_count: { "3": 1 }
           },
-          business_domain_analysis: { 
-            unique_l1_domains: domainCount, 
-            total_l1_references: domainCount, 
-            top_l1_domains: topDomains, 
-            average_domains_per_project: domainCount 
+          business_domain_analysis: {
+            unique_l1_domains: domainCount,
+            total_l1_references: domainCount,
+            top_l1_domains: topDomains,
+            average_domains_per_project: domainCount
           },
-          feature_analysis: { 
-            unique_l2_features: featureCount, 
-            total_l2_references: featureCount, 
-            top_l2_features: topFeatures, 
-            average_features_per_project: featureCount 
+          feature_analysis: {
+            unique_l2_features: featureCount,
+            total_l2_references: featureCount,
+            top_l2_features: topFeatures,
+            average_features_per_project: featureCount
           },
-          component_analysis: { 
-            unique_l3_components: fileCount, 
-            total_l3_references: fileCount, 
-            top_l3_components: { "Legacy Files": fileCount }, 
-            average_components_per_project: fileCount 
+          component_analysis: {
+            unique_l3_components: fileCount,
+            total_l3_references: fileCount,
+            top_l3_components: { "Legacy Files": fileCount },
+            average_components_per_project: fileCount
           }
         }
       };
@@ -280,20 +281,20 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
     for (const f of businessFeaturesGrid) {
       domains.add(f.l1Domain);
     }
-    return Array.from(domains).sort((a,b) => a.localeCompare(b));
+    return Array.from(domains).sort((a, b) => a.localeCompare(b));
   }, [businessFeaturesGrid]);
 
   // Filter business features grid
   const filteredBusinessFeatures = useMemo(() => {
     return businessFeaturesGrid.filter(feature => {
-      const matchesSearch = 
+      const matchesSearch =
         feature.projectName.toLowerCase().includes(featureSearchTerm.toLowerCase()) ||
         feature.l1Domain.toLowerCase().includes(featureSearchTerm.toLowerCase()) ||
         feature.l2Feature.toLowerCase().includes(featureSearchTerm.toLowerCase()) ||
         feature.l2Description.toLowerCase().includes(featureSearchTerm.toLowerCase());
-      
+
       const matchesL1Filter = selectedL1Filter === 'all' || feature.l1Domain === selectedL1Filter;
-      
+
       return matchesSearch && matchesL1Filter;
     });
   }, [businessFeaturesGrid, featureSearchTerm, selectedL1Filter]);
@@ -337,7 +338,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
     md += `- **Business Domains:** ${data.statistics.business_domain_analysis.unique_l1_domains}\n`;
     md += `- **Features Identified:** ${data.statistics.feature_analysis.unique_l2_features}\n`;
     md += `- **Components Mapped:** ${data.statistics.component_analysis.unique_l3_components}\n\n`;
-    
+
     md += `## Top Technologies\n\n`;
     for (const tech of techData) {
       md += `- **${tech.name}**: ${tech.count} projects\n`;
@@ -1166,11 +1167,10 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-6 py-4 font-medium transition-colors ${
-                  activeTab === tab
+                className={`px-6 py-4 font-medium transition-colors ${activeTab === tab
                     ? 'border-b-2 text-gray-900'
                     : 'text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
                 style={activeTab === tab ? { borderColor: BRAND_COLOR, color: BRAND_COLOR } : {}}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -1223,7 +1223,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ range, percent }) => `${range}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ payload, percent }: any) => `${payload?.range || ''}: ${(((percent ?? 0)) * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="count"
@@ -1406,7 +1406,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
                   </select>
                 </div>
               </div>
-              
+
               <div className="mt-3 flex items-center justify-between">
                 <p className="text-sm text-gray-600">
                   Showing {filteredBusinessFeatures.length} of {businessFeaturesGrid.length} features
@@ -1625,7 +1625,7 @@ const ModuleAnalysisViz: React.FC<ModuleAnalysisProps> = ({ data: rawData }) => 
                                   <h6 className="font-medium text-gray-900">{domain.l1_domain}</h6>
                                   <p className="text-xs text-gray-600 mt-1">{domain.l1_description}</p>
                                   <p className="text-xs text-gray-500 mt-1">
-                                    {domain.l2_features.length} features 
+                                    {domain.l2_features.length} features
                                   </p>
                                 </div>
                               </button>

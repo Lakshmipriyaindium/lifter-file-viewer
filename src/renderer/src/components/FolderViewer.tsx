@@ -25,10 +25,12 @@ import ProgramFlowView from './program-flow/ProgramFlowView';
 import HierarchicalFeatureAnalysis from './feature-analysis/hierachy-feature';
 import CapabilityModelViewer from './feature-analysis/CapabilityModelViewer';
 import CrossRepoVisualizer from './cross-repo/CrossRepoVisualizer';
+import CloudReadinessViewer from './cloud/CloudReadinessViewer';
+import C4ArchitectureExplorer from './c4-architecture/C4ArchitectureExplorer';
 import FocusedAnalysis from './feature-analysis/FocusedAnalysis';
 import BusinessMetricsAnalysis from './business-metrics/BusinessMetricsAnalysis';
 import ConsolidatedBusinessReport from './consolidated-business/ConsolidatedBusinessReport';
-import CloudReadinessViewer from './cloud/CloudReadinessViewer';
+import ArchitectureAnalysisViewer from './architecture-analysis/ArchitectureAnalysisViewer';
 
 interface ChartEBProps {
   onOpenInEditor: () => void;
@@ -374,6 +376,8 @@ export default function FolderViewer({ onBack }: { onBack: () => void }) {
       if (mode === 'business_metrics') return <BusinessMetricsAnalysis data={data} />;
       if (mode === 'consolidated_business_reports') return <ConsolidatedBusinessReport data={data} />;
       if (mode === 'cloud') return <CloudReadinessViewer data={data} />;
+      if (mode === 'c4_architecture') return <C4ArchitectureExplorer data={data} />;
+      if (mode === 'architecture_analysis') return <ArchitectureAnalysisViewer data={data} />;
 
       return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8 text-center">

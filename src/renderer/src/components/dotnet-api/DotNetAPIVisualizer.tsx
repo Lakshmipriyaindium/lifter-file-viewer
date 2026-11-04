@@ -121,7 +121,7 @@ export const ApiAnalysisVisualization: React.FC<
         Path: undefined // Remove the absolute path
       }))
     };
-    
+
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -197,8 +197,8 @@ export const ApiAnalysisVisualization: React.FC<
       <div>
         <h1 class="text-3xl font-bold text-gray-900 mb-2">${data.SolutionName} - API Analysis</h1>
         <p class="text-gray-600">Analysis Date: ${new Date(data.AnalysisDate).toLocaleDateString("en-US", {
-          year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"
-        })}</p>
+      year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"
+    })}</p>
       </div>
     </div>
 
@@ -744,7 +744,7 @@ export const ApiAnalysisVisualization: React.FC<
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) =>
+                label={({ name, percent = 0 }) =>
                   `${name} (${(percent * 100).toFixed(0)}%)`
                 }
                 outerRadius={80}
