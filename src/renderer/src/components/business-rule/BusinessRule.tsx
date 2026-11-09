@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import type {
+  BusinessRule,
   BusinessRulesData,
   FilterState,
   SortField,
@@ -24,7 +25,7 @@ import type {
 } from './type';
 
 interface BusinessRulesVisualizerProps {
-  data: BusinessRulesData;
+  data: BusinessRulesData | BusinessRule[];
 }
 
 const BusinessRulesVisualizer: React.FC<BusinessRulesVisualizerProps> = ({ data }) => {
@@ -45,7 +46,7 @@ const BusinessRulesVisualizer: React.FC<BusinessRulesVisualizerProps> = ({ data 
 
   const businessRulesList = useMemo(() => {
     if (Array.isArray(data)) return data;
-    return Array.isArray(data?.business_rules) ? data.business_rules : (Array.isArray(data?.businessRules) ? data.businessRules : []);
+    return Array.isArray(data?.business_rules) ? data.business_rules : (Array.isArray(data?.business_rules) ? data.business_rules : []);
   }, [data]);
 
   // Extract unique values for filter dropdowns
@@ -65,9 +66,9 @@ const BusinessRulesVisualizer: React.FC<BusinessRulesVisualizerProps> = ({ data 
     }
 
     return {
-      categories: Array.from(categories).sort((a,b) => a.localeCompare(b)),
-      priorities: Array.from(priorities).sort((a,b) => a.localeCompare(b)),
-      languages: Array.from(languages).sort((a,b) => a.localeCompare(b))
+      categories: Array.from(categories).sort((a, b) => a.localeCompare(b)),
+      priorities: Array.from(priorities).sort((a, b) => a.localeCompare(b)),
+      languages: Array.from(languages).sort((a, b) => a.localeCompare(b))
     };
   }, [businessRulesList]);
 

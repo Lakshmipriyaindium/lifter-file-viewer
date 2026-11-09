@@ -1,6 +1,6 @@
 "use client"
 import * as React from "react"
-import type { ControllerProps, FieldPath, FieldValues, UseFormReturn } from "react-hook-form"
+import type { ControllerProps, FieldPath, FieldValues, SubmitHandler, UseFormReturn } from "react-hook-form"
 import { Controller, FormProvider, useFormContext } from "react-hook-form"
 
 import { cn } from "@/lib/utils"
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 
 type FormProps<TFieldValues extends FieldValues = FieldValues, TContext = unknown> = React.PropsWithChildren<{
   form: UseFormReturn<TFieldValues, TContext>
-}> & React.FormHTMLAttributes<HTMLFormElement>
+  onSubmit?: SubmitHandler<TFieldValues>
+}> & Omit<React.FormHTMLAttributes<HTMLFormElement>, "onSubmit">
 
 /**
  * A form component that integrates with react-hook-form.
@@ -17,20 +18,14 @@ const Form = <TFieldValues extends FieldValues = FieldValues, TContext = unknown
   form,
   children,
   className,
+  onSubmit,
   ...props
 }: FormProps<TFieldValues, TContext>) => {
   return (
     <FormProvider {...form}>
       <form
         className={className}
-        onSubmit={(e) => {
-          e.preventDefault();
-          form.handleSubmit((data) => {
-            if (props.onSubmit) {
-              props.onSubmit(data as unknown as React.FormEvent<HTMLFormElement>);
-            }
-          })(e);
-        }}
+        onSubmit={onSubmit ? form.handleSubmit(onSubmit) : undefined}
         {...props}
       >
         {children}
