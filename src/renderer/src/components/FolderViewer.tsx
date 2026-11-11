@@ -23,7 +23,7 @@ import CodebaseAnalyzer from './project-analysis/CodebaseAnalyzer';
 import { ApiAnalysisVisualization } from './dotnet-api/DotNetAPIVisualizer';
 import ProgramFlowView from './program-flow/ProgramFlowView';
 import HierarchicalFeatureAnalysis from './feature-analysis/hierachy-feature';
-import CapabilityModelViewer from './feature-analysis/CapabilityModelViewer';
+import CapabilityModelViewer from './feature-analysis/domain-hierarchy/CapabilityModelViewer';
 import CrossRepoVisualizer from './cross-repo/CrossRepoVisualizer';
 import CloudReadinessViewer from './cloud/CloudReadinessViewer';
 import C4ArchitectureExplorer from './c4-architecture/C4ArchitectureExplorer';
