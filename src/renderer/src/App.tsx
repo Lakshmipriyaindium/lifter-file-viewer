@@ -20,7 +20,7 @@ import ProjectAnalysisDashboard from './components/project-analysis/ProjectAnaly
 import CodebaseAnalyzer from './components/project-analysis/CodebaseAnalyzer';
 import { ApiAnalysisVisualization } from './components/dotnet-api/DotNetAPIVisualizer';
 import HierarchicalFeatureAnalysis from './components/feature-analysis/hierachy-feature';
-import CapabilityModelViewer from './components/feature-analysis/CapabilityModelViewer';
+import CapabilityModelViewer from './components/feature-analysis/domain-hierarchy/CapabilityModelViewer';
 import CrossRepoVisualizer from './components/cross-repo/CrossRepoVisualizer';
 import CloudReadinessViewer from './components/cloud/CloudReadinessViewer';
 import C4ArchitectureExplorer from './components/c4-architecture/C4ArchitectureExplorer';
