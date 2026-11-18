@@ -25,6 +25,8 @@ import CrossRepoVisualizer from './components/cross-repo/CrossRepoVisualizer';
 import CloudReadinessViewer from './components/cloud/CloudReadinessViewer';
 import C4ArchitectureExplorer from './components/c4-architecture/C4ArchitectureExplorer';
 import ArchitectureAnalysisViewer from './components/architecture-analysis/ArchitectureAnalysisViewer';
+import { VIEWER_CARDS, ViewerCategory } from './lib/viewerCards';
+import ViewerCard from './components/ViewerCard';
 // ──────────────────────────────────────────────
 // Error Boundary – catches render-time crashes
 // caused by wrong/malformed JSON being passed to a visualizer
@@ -132,6 +134,7 @@ function ViewerHeader({ onBack }: { onBack: () => void }) {
 // ──────────────────────────────────────────────
 function App() {
   const [appView, setAppView] = useState<'choice' | 'single' | 'folder'>('choice');
+  const [activeTab, setActiveTab] = useState<ViewerCategory>('functional_analysis');
   const [data, setData] = useState<any>(null);
   const [rawText, setRawText] = useState<string>('');
   const [error, setError] = useState('');
@@ -561,6 +564,10 @@ function App() {
     return <FolderViewer onBack={() => setAppView('choice')} />;
   }
 
+  const displayedCards = VIEWER_CARDS.filter((card) => card.category === activeTab);
+  const systemCount = VIEWER_CARDS.filter((card) => card.category === 'system_assessment').length;
+  const functionalCount = VIEWER_CARDS.filter((card) => card.category === 'functional_analysis').length;
+
   // ── Home screen (Single File Viewer) ──
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center p-8 w-full">
@@ -578,253 +585,52 @@ function App() {
           </div>
         </div>
 
+        {/* Tab Navigation */}
+        <div className="flex border-b border-gray-200 mb-8 space-x-8">
+
+          <button
+            onClick={() => setActiveTab('functional_analysis')}
+            className={`pb-4 px-2 font-semibold text-lg transition-all relative flex items-center ${activeTab === 'functional_analysis'
+              ? 'text-orange-600 border-b-2 border-orange-500'
+              : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent'
+              }`}
+          >
+            Functional Analysis
+            <span
+              className={`ml-2.5 text-xs px-2.5 py-0.5 rounded-full font-medium ${activeTab === 'functional_analysis'
+                ? 'bg-orange-100 text-orange-700'
+                : 'bg-gray-100 text-gray-500'
+                }`}
+            >
+              {functionalCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('system_assessment')}
+            className={`pb-4 px-2 font-semibold text-lg transition-all relative flex items-center ${activeTab === 'system_assessment'
+              ? 'text-orange-600 border-b-2 border-orange-500'
+              : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent'
+              }`}
+          >
+            System Assessment
+            <span
+              className={`ml-2.5 text-xs px-2.5 py-0.5 rounded-full font-medium ${activeTab === 'system_assessment'
+                ? 'bg-orange-100 text-orange-700'
+                : 'bg-gray-100 text-gray-500'
+                }`}
+            >
+              {systemCount}
+            </span>
+          </button>
+
+        </div>
+
+        {/* Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
-          {/* C4 Architecture Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group relative">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🏢</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">C4 Architecture</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Visualize C4 architecture models (Context, Containers, Components) from JSON files.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'c4_architecture')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Consolidated Analysis Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group relative">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">📊</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Consolidated Analysis</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Project-wide business intelligence dashboard. Supports modern flow-based and legacy domain-based formats.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'consolidated_analysis')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Business Terms Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group relative">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">📖</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Business Terms</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Explore and export project terminology, constants, and data elements from business_terms.json.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'business_terms')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* User Stories Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group relative">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">📋</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">User Stories</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Detailed view of epics, stories, and acceptance criteria from user_stories.json.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'user_stories')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Business Rules Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group relative">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">📝</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Business Rules</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Analyze extracted business rules and constraints from business_rules.json.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'business_rules')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Total Analysis Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group relative">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">📈</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Total Analysis</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Comprehensive results dashboard for the entire codebase analysis.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'total_analysis')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Hierarchical Features Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group relative">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🌳</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Hierarchical Features</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Multi-level domain and sub-feature hierarchy from hierarchical_features.json.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'hierarchical_features')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Domain Hierarchy Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group relative">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🏛️</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Domain Hierarchy</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Hierarchical view of Domains, Capabilities, Features, and User Stories.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'capability_model')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Business Process Flow */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🔄</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Business Process</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Visualize process timelines and swimlane flowcharts from business_process_flow.json.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'business_process_flow')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Flow Graph V2 */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🕸️</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Call Graph</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Explore interactive call graphs from graph data files (_d3_v2 or call_graph).</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'd3_graph_v2')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Knowledge Graph */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🕸️</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Knowledge Graph</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Explore entity relationship graphs from unified_knowledge_graph.json.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'kg')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* D3 Graph V1 */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">📉</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">D3 Graph (V1)</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">View interactive force-directed graphs of code relationships from _d3.json files.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'd3_graph')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Mermaid Viewer */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">📊</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Mermaid Viewer</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Visualize .mmd or .txt files containing Mermaid diagrams.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select .mmd File
-                <input type="file" accept=".mmd,.txt" onChange={(e) => handleFileUpload(e, 'mermaid')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* PlantUML Viewer */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🌳</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">PlantUML Viewer</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Visualize .puml files using the PlantUML rendering engine.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select .puml File
-                <input type="file" accept=".puml,.txt" onChange={(e) => handleFileUpload(e, 'plantuml')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Client Customization */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🏢</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Client Customization</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Analyze client-specific code patterns and rules from client_customizations.json.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'client_customizations')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Node Analysis */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">📂</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Node Analysis</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">View detailed analysis across code nodes from customizations_by_node.json.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'customizations_by_node')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Cross-Repo Connections Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🔗</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Cross-Repo Connections</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Visualize API and integration dependencies across multiple repositories.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'cross_repo')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Cloud Readiness Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">☁️</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Cloud Readiness</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Evaluate cloud readiness score, 14 architectural factors, and 6R migration strategy recommendations.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'cloud')} className="hidden" />
-              </label>
-            </div>
-          </div>
-
-          {/* Architecture Analysis Card */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-orange-500 transition-all duration-300 overflow-hidden flex flex-col group">
-            <div className="p-8 flex-grow flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">🏛️</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Architecture Analysis</h2>
-              <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed">Visualize architecture style, microservice readiness, antipatterns and the architectural health checklist.</p>
-              <label className="mt-auto cursor-pointer w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-center">
-                Select JSON File
-                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'architecture_analysis')} className="hidden" />
-              </label>
-            </div>
-          </div>
+          {displayedCards.map((card) => (
+            <ViewerCard key={card.id} card={card} onUpload={handleFileUpload} />
+          ))}
         </div>
 
         {/* Auto-detect */}
