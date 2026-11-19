@@ -50,92 +50,140 @@ const getFileExtension = (fileName: string, extension?: string | null): string |
   return extension?.toLowerCase() || fileName.split('.').pop()?.toLowerCase();
 };
 
+// Tokenize filename into lowercase word segments (e.g. "architecture_c4.json" -> ["architecture", "c4"])
+const tokenize = (fileName: string): string[] => {
+  const baseName = fileName.replace(/\.[^.]+$/, '').toLowerCase();
+  return baseName.replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean);
+};
+
+// Prefix-aware token matcher (e.g. "rule" matches "rules", "customiz" matches "customizations")
+const hasToken = (tokens: string[], keyword: string): boolean => {
+  return tokens.some(token => token === keyword || token.startsWith(keyword));
+};
+
+interface ChartRule {
+  mode: string;
+  require: string[];   // All required tokens must be present
+  exclude?: string[]; // None of these tokens can be present
+}
+
+const CHART_RULES: ChartRule[] = [
+  // C4 Architecture (matches "architecture_c4", "c4_architecture", "c4_model", etc.)
+  { mode: 'c4_architecture', require: ['c4'] },
+
+  // Architecture Analysis (requires "architecture", but not "c4")
+  { mode: 'architecture_analysis', require: ['architecture', 'analysis'], exclude: ['c4'] },
+
+  // Cloud Readiness
+  { mode: 'cloud', require: ['cloud'] },
+
+  // Analysis & Features
+  { mode: 'total_analysis', require: ['total', 'analysis'] },
+  { mode: 'hierarchical_features', require: ['hierarchical'] },
+  { mode: 'focused_analysis', require: ['focused', 'analysis'] },
+
+  // Business Group (differentiated by unique keywords)
+  { mode: 'business_terms', require: ['term'] },
+  { mode: 'business_process_flow', require: ['process'] },
+  { mode: 'business_metrics', require: ['business', 'metric'] },
+  { mode: 'consolidated_business_reports', require: ['business', 'report'] },
+  { mode: 'business_rules', require: ['rule'], exclude: ['metric', 'summary'] },
+
+  // Customizations
+  { mode: 'customizations_by_node', require: ['customiz', 'node'] },
+  { mode: 'client_customizations', require: ['customiz'], exclude: ['node'] },
+
+  // Graphs & Stories
+  { mode: 'd3_graph_v2', require: ['d3', 'v2'] },
+  { mode: 'd3_graph_v2', require: ['call', 'graph'] },
+  { mode: 'd3_graph', require: ['d3'], exclude: ['v2'] },
+  { mode: 'kg', require: ['knowledge', 'graph'] },
+  { mode: 'user_stories', require: ['user', 'stor'] },
+
+  // Project Inventory, Reports & Tools
+  { mode: 'project_analysis_result', require: ['project', 'analysis'] },
+  { mode: 'consolidated_project_inventory', require: ['project', 'inventory'] },
+  { mode: 'component_distribution', require: ['component', 'distribution'] },
+  { mode: 'sbom', require: ['sbom'] },
+  { mode: 'sbom', require: ['cyclonedx'] },
+  { mode: 'security', require: ['security'] },
+  { mode: 'legacy_consolidated_analysis', require: ['module', 'analysis'] },
+  { mode: 'API-report', require: ['api', 'report'] },
+  { mode: 'program_flow', require: ['program', 'flow'] },
+  { mode: 'capability_model', require: ['capability'] },
+  { mode: 'capability_model', require: ['taxonomy'] },
+  { mode: 'capability_model', require: ['l1', 'l2', 'l3'] },
+  { mode: 'cross_repo', require: ['cross'] },
+];
+
 export const determineChartType = (fileName: string, content: string): string | null => {
   const extension = getFileExtension(fileName);
 
   // 1. Mermaid (mmd, txt, or content-based)
   if (extension === 'mmd' || fileName.toLowerCase().includes('mermaid') || isMermaidContent(content)) {
-    return "mermaid";
+    return 'mermaid';
   }
 
   // 2. PlantUML
   if (extension === 'puml' || fileName.toLowerCase().includes('plantuml') || content.includes('@startuml')) {
-    return "plantuml";
+    return 'plantuml';
   }
 
-  // 2. JSON-based visualizations
+  // 3. JSON-based visualizations
   if (extension === 'json') {
-    const lowerName = fileName.toLowerCase();
+    const tokens = tokenize(fileName);
 
-    if (lowerName.includes("total_analysis_results")) return "total_analysis";
-    if (lowerName.includes("hierarchical_features") || lowerName.includes("hierarchical_fectures")) return "hierarchical_features";
-    if (lowerName.includes("business_rules_metrics") || lowerName.includes("business_rules_summary")) return null;
-    if (lowerName.includes("business_rules")) return "business_rules";
-    if (lowerName.includes("_d3_v2") || lowerName.includes("call_graph")) return "d3_graph_v2";
-    if (lowerName.includes("_d3")) return "d3_graph";
-    if (lowerName.includes("client_customizations")) return "client_customizations";
-    if (lowerName.includes("customizations_by_node")) return "customizations_by_node";
-    if (lowerName.includes("unified_knowledge_graph")) return "kg";
-    if (lowerName.includes("user_stories")) return "user_stories";
-    if (lowerName.includes("business_process_flow")) return "business_process_flow";
-    if (lowerName.includes("project_analysis_result")) return "project_analysis_result";
-    if (lowerName.includes("consolidated_project_inventory")) return "consolidated_project_inventory";
-    if (lowerName.includes("consolidated_analysis") || lowerName.includes("consolidated_gims_analysis")) {
+    // Business rules metrics / summary files should not render as rules charts
+    if (hasToken(tokens, 'rule') && (hasToken(tokens, 'metric') || hasToken(tokens, 'summary'))) {
+      return null;
+    }
+
+    // Consolidated analysis has a special sub-format check (legacy vs modern)
+    if (hasToken(tokens, 'consolidated') && hasToken(tokens, 'analysis')) {
       try {
         const data = JSON.parse(content);
-        // Legacy format has 'domains' and 'business_features_l1'
-        if (data.domains && data.business_features_l1) {
-          return "legacy_consolidated_analysis";
-        }
-        // Modern format has 'flows' and 'features'
-        return "consolidated_analysis";
-      } catch (e) {
-        return "consolidated_analysis";
+        return data.domains && data.business_features_l1
+          ? 'legacy_consolidated_analysis'
+          : 'consolidated_analysis';
+      } catch {
+        return 'consolidated_analysis';
       }
     }
-    if (lowerName.includes("business_terms")) return "business_terms";
-    if (lowerName.includes("component-distribution")) return "component_distribution";
-    if (lowerName.includes("cyclonedx-sbom")) return "sbom";
-    if (lowerName.includes("security-report")) return "security";
-    if (lowerName.includes("module_analysis")) return "legacy_consolidated_analysis";
-    if (lowerName.includes("api-report")) return "API-report";
-    if (lowerName.includes("program_flow")) return "program_flow";
-    if (lowerName.includes("capability") || lowerName.includes("taxonomy") || lowerName.includes("l1_l2_l3")) return "capability_model";
-    if (lowerName.includes("focused_analysis")) return "focused_analysis";
-    if (lowerName.includes("business_metrics")) return "business_metrics";
-    if (lowerName.includes("consolidated_business_reports")) return "consolidated_business_reports";
-    if (lowerName.includes("cross_source_links") || lowerName.includes("cross_repo")) return "cross_repo";
-    if (lowerName.includes("architecture_analysis")) return "architecture_analysis";
-    if (lowerName.includes("c4_architecture")) return "c4_architecture";
-    if (lowerName.includes("cloud_readiness") || lowerName.includes("cloud_native")) return "cloud";
 
-    // Content-based detection for architecture analysis reports (before the cloud check)
+    // Match rules table (order-independent token matching)
+    const matchedRule = CHART_RULES.find(rule =>
+      rule.require.every(req => hasToken(tokens, req)) &&
+      (!rule.exclude || !rule.exclude.some(exc => hasToken(tokens, exc)))
+    );
+
+    if (matchedRule) {
+      return matchedRule.mode;
+    }
+
+    // Content-based fallbacks (parsed once for efficiency)
     try {
       const data = JSON.parse(content);
-      if (data && data.architecture_style && Array.isArray(data.checklist_items) && data.microservice_readiness) {
-        return "architecture_analysis";
+      if (data) {
+        // C4 Architecture fallback (matches system_context or containers)
+        if (data.system_context || data.containers || (data.metadata && data.metadata.project_name)) {
+          return 'c4_architecture';
+        }
+        // Architecture Analysis fallback
+        if (data.architecture_style && Array.isArray(data.checklist_items) && data.microservice_readiness) {
+          return 'architecture_analysis';
+        }
+        // Cloud Readiness fallback
+        if (typeof data.overall_score === 'number' && Array.isArray(data.dimensions) && typeof data.recommended_strategy === 'string') {
+          return 'cloud';
+        }
+        // Capability Model fallback
+        if (Array.isArray(data) && data.length > 0 && data[0].l2Capabilities) {
+          return 'capability_model';
+        }
       }
-    } catch (e) { }
-
-    // Content-based detection for cloud readiness files
-    try {
-      const data = JSON.parse(content);
-      if (
-        data &&
-        typeof data.overall_score === 'number' &&
-        Array.isArray(data.dimensions) &&
-        typeof data.recommended_strategy === 'string'
-      ) {
-        return "cloud";
-      }
-    } catch (e) { }
-
-    try {
-      const data = JSON.parse(content);
-      if (Array.isArray(data) && data.length > 0 && data[0].l2Capabilities) {
-        return "capability_model";
-      }
-    } catch (e) { }
+    } catch {
+      // Invalid JSON syntax; returns null
+    }
   }
 
   return null;
